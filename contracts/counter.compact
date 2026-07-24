@@ -1,0 +1,90 @@
+// ═══════════════════════════════════════════════════════════════════════
+// Vault Circle — Privacy-Preserving Rotating Savings Circle (Step 1)
+// ═══════════════════════════════════════════════════════════════════════
+//
+// PRIVACY MODEL:
+//   PUBLIC (on-chain ledger state):
+//     - `contributionMet` (Boolean): Whether the required contribution
+//       threshold has been met for the current cycle — never reveals
+//       the actual contribution amount.
+//     - `cycleCount` (Uint<32>): Number of completed cycles.
+//     - `poolSolvent` (Boolean): Whether the fund remains solvent.
+//
+//   PRIVATE (witness — never leaves the member's machine):
+//     - `memberContribution`: The member's actual contribution amount.
+//       This is provided as a private witness so individual amounts
+//       are never recorded on-chain.
+//
+//   DISCLOSED (deliberately revealed to ledger):
+//     - The boolean result `contributionMet` — proves the member
+//       contributed at least the required share without revealing
+//       the exact amount.
+//     - The `cycleCount` is updated when a cycle closes.
+//
+// CONCEPT:
+//   In a chit fund / rotating savings circle, each member contributes
+//   a fixed share per cycle. One member receives the full pool payout
+//   on rotation. This contract proves a member met the required share
+//   without disclosing the actual amount — preserving financial privacy
+//   while maintaining a public proof of fund health.
+// ═══════════════════════════════════════════════════════════════════════
+
+pragma language_version 0.23;
+
+// Required contribution per member per cycle (set at deployment)
+export ledger requiredShare: Uint<32>;
+
+// Whether the current member's contribution met the required threshold
+export ledger contributionMet: Boolean;
+
+// Number of completed cycles (public counter)
+export ledger cycleCount: Uint<32>;
+
+// Whether the fund is solvent (all contributions in, payouts covered)
+export ledger poolSolvent: Boolean;
+
+// Private witness — the member's actual contribution amount
+// This value is never written to the ledger; it stays on the member's machine
+witness memberContribution(): Uint<32>;
+
+// ─── Constructor ─────────────────────────────────────────────────────
+// Initializes the fund with a required share per cycle.
+// The requiredShare is public so all members can verify the threshold.
+constructor(reqShare: Uint<32>) {
+  requiredShare = disclose(reqShare);
+  contributionMet = disclose(false);
+  cycleCount = disclose(0 as Uint<32>);
+  poolSolvent = disclose(true);
+}
+
+// ─── contribute ──────────────────────────────────────────────────────
+// A member proves their contribution meets the required share.
+// The actual amount stays private; only the boolean result is disclosed.
+export circuit contribute(): [] {
+  // Get the member's actual contribution from off-chain (private witness)
+  const amount = memberContribution();
+
+  // Prove the contribution meets the required share without revealing it
+  assert(amount >= requiredShare, "Contribution does not meet the required share");
+
+  // Disclose only the boolean result — never the actual amount
+  contributionMet = disclose(true);
+}
+
+// ─── closeCycle ──────────────────────────────────────────────────────
+// Closes the current cycle after a successful payout.
+// Resets contributionMet for the next cycle and increments the counter.
+export circuit closeCycle(): [] {
+  assert(contributionMet == true, "Cannot close cycle: contribution not met");
+
+  // Disclose that the cycle closed and increment the counter
+  contributionMet = disclose(false);
+  cycleCount = disclose(cycleCount + 1 as Uint<32>);
+}
+
+// ─── markInsolvent ───────────────────────────────────────────────────
+// Emergency circuit: marks the fund as insolvent if payouts exceed pool.
+export circuit markInsolvent(): [] {
+  assert(poolSolvent == true, "Fund is already marked insolvent");
+  poolSolvent = disclose(false);
+}
