@@ -116,34 +116,28 @@ const signTransactionIntents = (
 import { firstValueFrom } from 'rxjs';
 
 /**
- * Wait for dust wallet to reach the chain tip.
- * Detects "at tip" when the delta between checks drops below 50 events
- * for 3 consecutive checks (the chain produces ~10 events per 5s at the tip).
+ * Wait for dust wallet to fully sync by comparing appliedIndex to highestRelevantWalletIndex.
+ * The chain has ~1.3M dust events; at ~600 events/s this takes ~37 minutes.
  */
-const waitForDustStabilized = async (wallet: WalletFacade, maxMs = 15 * 60 * 1000): Promise<void> => {
+const waitForDustSynced = async (wallet: WalletFacade, maxMs = 180 * 60 * 1000): Promise<void> => {
   const start = Date.now();
-  let lastApplied = -1n;
-  let atTipChecks = 0;
-  const AT_TIP_NEEDED = 3;
-  const AT_TIP_THRESHOLD = 50n; // < 50 events per 5s check = at tip
 
   while (Date.now() - start < maxMs) {
-    await new Promise((r) => setTimeout(r, 5000));
+    await new Promise((r) => setTimeout(r, 10_000)); // check every 10s
     const ds = await firstValueFrom(wallet.dust.state);
     const p = ds?.progress ?? ds?.state?.progress;
     const applied = BigInt(p?.appliedIndex ?? 0);
-    const delta = lastApplied >= 0n ? applied - lastApplied : applied;
-    lastApplied = applied;
-    if (delta < AT_TIP_THRESHOLD) {
-      atTipChecks++;
-      console.log(`      dust: applied=${applied} delta=${delta} (at tip ${atTipChecks}/${AT_TIP_NEEDED})`);
-      if (atTipChecks >= AT_TIP_NEEDED) return;
+    const highest = BigInt(p?.highestRelevantWalletIndex ?? 0);
+
+    if (highest > 0n) {
+      const pct = highest > 0n ? Number((applied * 100n) / highest) : 0;
+      console.log(`      dust: ${applied}/${highest} (${pct}%)`);
+      if (applied >= highest) return;
     } else {
-      atTipChecks = 0;
-      console.log(`      dust: applied=${applied} delta=${delta} (syncing…)`);
+      console.log(`      dust: applied=${applied} (waiting for index…)`);
     }
   }
-  console.log('      dust: max wait exceeded — proceeding anyway');
+  console.log('      dust: max wait (50 min) exceeded — proceeding anyway');
 };
 
 const waitForSync = async (wallet: WalletFacade): Promise<FacadeState> => {
@@ -156,7 +150,7 @@ const waitForSync = async (wallet: WalletFacade): Promise<FacadeState> => {
   console.log('    ✓ Unshielded synced');
 
   console.log('    ⏳ Dust (waiting for indexer backfill to stabilise)…');
-  await waitForDustStabilized(wallet);
+  await waitForDustSynced(wallet);
   console.log('    ✓ Dust synced (stabilised)');
 
   return await firstValueFrom(wallet.state());

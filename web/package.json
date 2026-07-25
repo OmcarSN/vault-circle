@@ -1,0 +1,40 @@
+{
+  "name": "vault-circle-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vault Circle frontend — Lace wallet connect + observable-privacy demo for the Midnight ROSCA contract.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "prep:zk": "node scripts/prepare-zk-assets.mjs"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "^0.16.0",
+    "@midnight-ntwrk/ledger-v8": "^8.1.0",
+    "@midnight-ntwrk/midnight-js": "^4.1.1",
+    "@midnight-ntwrk/midnight-js-contracts": "^4.1.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "^4.1.1",
+    "@midnight-ntwrk/midnight-js-network-id": "^4.1.1",
+    "buffer": "^6.0.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "typescript": "5.9.3",
+    "vite": "5.4.11",
+    "vite-plugin-top-level-await": "^1.4.4",
+    "vite-plugin-wasm": "^3.4.1"
+  },
+  "//tierC_writePathDeps": {
+    "_comment": "Tier C (calling a circuit → generating a ZK proof → submitting) is GATED in this build: src/midnight/circuits.ts throws a clear WritePathUnavailableError instead of importing these. They are only needed once you deploy a contract, run the proof server (Docker), and want a real on-chain contribute(). Install them, then wire assembleWritePath() per the header in circuits.ts. Connect/disconnect, the privacy demo, and on-chain ledger reads all work WITHOUT them.",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "4.1.1"
+  }
+}
