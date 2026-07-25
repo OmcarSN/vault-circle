@@ -179,7 +179,7 @@ export async function connectLace(): Promise<ConnectionInfo> {
       });
 
   const [state, uris] = await Promise.all([
-    api.state(),
+    extractWalletState(api),
     fetchUris,
   ]);
   log('connected successfully', { address: state.address, uris });
@@ -191,6 +191,72 @@ export async function connectLace(): Promise<ConnectionInfo> {
     walletName: connector.name || 'Midnight Lace',
     apiVersion: connector.apiVersion || '1.0.0',
     connectorKey: chosenKey,
+  };
+}
+
+async function extractWalletState(api: any): Promise<WalletState> {
+  log('extracting state from api', api);
+  let raw: any = null;
+
+  try {
+    if (typeof api.state === 'function') {
+      raw = await api.state();
+    } else if (typeof api.getState === 'function') {
+      raw = await api.getState();
+    } else if (api.state && typeof api.state.subscribe === 'function') {
+      raw = await new Promise((resolve, reject) => {
+        const sub = api.state.subscribe({
+          next: (v: any) => { sub.unsubscribe(); resolve(v); },
+          error: (err: any) => reject(err),
+        });
+      });
+    } else if (api.state$ && typeof api.state$.subscribe === 'function') {
+      raw = await new Promise((resolve, reject) => {
+        const sub = api.state$.subscribe({
+          next: (v: any) => { sub.unsubscribe(); resolve(v); },
+          error: (err: any) => reject(err),
+        });
+      });
+    } else if (api.state) {
+      raw = await Promise.resolve(api.state);
+    } else {
+      raw = api;
+    }
+  } catch (err) {
+    log('error invoking api.state(), fallback to api object', err);
+    raw = api;
+  }
+
+  log('raw wallet state:', raw);
+
+  const address =
+    typeof raw === 'string'
+      ? raw
+      : raw?.address ||
+        raw?.bech32Address ||
+        raw?.unshieldedAddress ||
+        raw?.publicKeys?.coinPublicKey ||
+        'connected-wallet';
+
+  const coinPublicKey =
+    raw?.coinPublicKey ||
+    raw?.publicKeys?.coinPublicKey ||
+    raw?.coinKey ||
+    '';
+
+  const encryptionPublicKey =
+    raw?.encryptionPublicKey ||
+    raw?.publicKeys?.encryptionPublicKey ||
+    raw?.encryptionKey ||
+    '';
+
+  const balances = raw?.balances || raw?.balance || {};
+
+  return {
+    address,
+    coinPublicKey,
+    encryptionPublicKey,
+    balances,
   };
 }
 
