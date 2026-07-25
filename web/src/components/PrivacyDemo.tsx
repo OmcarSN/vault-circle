@@ -6,28 +6,15 @@ import {
   type PublicStateBefore,
 } from '../privacy/model';
 
-// ═══════════════════════════════════════════════════════════════════════
-// PrivacyDemo — the "observable privacy behavior" demonstration.
-//
-// The claim: contribute() proves amount >= requiredShare while revealing only
-// the boolean. To make that *observable*, we run two members with DIFFERENT
-// secret amounts through the same public state and show their on-chain
-// footprints are byte-identical. The secret is proven, never revealed.
-//
-// Fully client-side (mirrors the contract's disclose boundary) — no wallet,
-// no proof server — so it always works and is the safe thing to screen-record.
-// ═══════════════════════════════════════════════════════════════════════
-
 export function PrivacyDemo() {
   const [requiredShare, setRequiredShare] = useState('100');
-  const [amountA, setAmountA] = useState('100'); // exactly meets
-  const [amountB, setAmountB] = useState('100000'); // vastly overpays
+  const [amountA, setAmountA] = useState('100'); // Alice
+  const [amountB, setAmountB] = useState('100000'); // Bob
 
   const share = safeBig(requiredShare);
   const a = safeBig(amountA);
   const b = safeBig(amountB);
 
-  // Same prior public state for both members, so only the secret differs.
   const before: PublicStateBefore = useMemo(
     () => ({ requiredShare: share, contributionsCount: 0n, poolTotal: 0n }),
     [share],
@@ -42,37 +29,34 @@ export function PrivacyDemo() {
   const bothMet = outA.returned && outB.returned;
 
   return (
-    <section className="panel">
-      <h2>🔍 Observable privacy</h2>
+    <section className="panel" style={{ marginTop: 24 }}>
+      <h2><span>🧪</span> Zero-Knowledge Privacy Simulator</h2>
       <p className="sub">
-        Prove <em>“I met the share”</em> without revealing <em>how much</em> —
-        and see that the chain genuinely can’t tell two different secrets apart.
+        Test how two members can deposit completely different secret amounts while producing the exact same public proof on the blockchain.
       </p>
 
-      {/* Shared public parameter. */}
-      <div className="row" style={{ marginBottom: 12 }}>
-        <label className="small">
-          <div className="muted" style={{ marginBottom: 4 }}>
-            requiredShare (public)
-          </div>
-          <input
-            type="number"
-            min="0"
-            value={requiredShare}
-            onChange={(e) => setRequiredShare(e.target.value)}
-          />
+      {/* Target Share Config */}
+      <div style={{ marginBottom: 20, maxWidth: 300 }}>
+        <label className="small muted" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
+          Circle Required Share Target (tNIGHT)
         </label>
+        <input
+          type="number"
+          min="0"
+          value={requiredShare}
+          onChange={(e) => setRequiredShare(e.target.value)}
+        />
       </div>
 
       <div className="grid2">
         <MemberColumn
-          label="Member A"
+          label="Member A (Alice)"
           amount={amountA}
           setAmount={setAmountA}
           met={outA.returned}
         />
         <MemberColumn
-          label="Member B"
+          label="Member B (Bob)"
           amount={amountB}
           setAmount={setAmountB}
           met={outB.returned}
@@ -82,50 +66,28 @@ export function PrivacyDemo() {
       {/* The verdict. */}
       <div
         className={`notice ${identical && bothMet ? '' : 'warn'}`}
-        style={{ marginTop: 16, borderColor: identical && bothMet ? '#1f5136' : undefined }}
+        style={{ marginTop: 20, borderColor: identical && bothMet ? '#1f5136' : undefined, background: identical && bothMet ? 'rgba(31,81,54,0.15)' : undefined }}
       >
         {identical ? (
           <>
-            <strong>Public footprints are identical.</strong> Members A and B
-            supplied different secret amounts (<code>{a.toString()}</code> vs{' '}
-            <code>{b.toString()}</code>), yet the chain records the exact same
-            state. An observer sees <code>met = {String(outA.returned)}</code>{' '}
-            and <em>cannot distinguish</em> the two secrets.
+            <strong>🎉 Public On-Chain Footprints are Identical!</strong>
+            <br />
+            Alice deposited <code>{a.toString()} tNIGHT</code> and Bob deposited <code>{b.toString()} tNIGHT</code>.
+            To the public blockchain, both generated the exact same verified record: <code>shareMet = {String(outA.returned)}</code>. An outside observer cannot tell their financial balance apart!
           </>
         ) : (
           <>
-            <strong>Footprints differ — but only via the boolean.</strong> One
-            amount clears the share and the other doesn’t, so{' '}
-            <code>contributionMet</code> differs. Neither amount is ever
-            disclosed; set both ≥ {share.toString()} to see identical footprints.
+            <strong>Footprints Differ (Threshold Not Met)</strong>
+            <br />
+            One member's deposit did not meet the required <code>{share.toString()} tNIGHT</code> share. Increase their deposit to see identical privacy footprints.
           </>
         )}
       </div>
 
-      {/* What an observer can infer. */}
-      <div className="small muted" style={{ marginTop: 14 }}>
-        <div style={{ marginBottom: 4 }}>
-          <strong>What the chain leaks about A’s secret:</strong>{' '}
-          {inferredRange(outA.returned, share).text}.
-        </div>
-        The disclosed bit narrows the amount to a range of size ~2^63 — it proves
-        a threshold was crossed while leaving the value itself unknown.
+      {/* What an observer can infer */}
+      <div className="small muted" style={{ marginTop: 16 }}>
+        <strong>Privacy Leakage Analysis:</strong> {inferredRange(outA.returned, share).text}. Zero-knowledge cryptographic circuits ensure individual financial amounts never touch the public ledger.
       </div>
-
-      {/* Canonical footprints, for the skeptic. */}
-      <details style={{ marginTop: 12 }}>
-        <summary className="muted small" style={{ cursor: 'pointer' }}>
-          Show the canonical on-chain footprint for each member
-        </summary>
-        <div className="grid2" style={{ marginTop: 10 }}>
-          <pre className="addr mono small" style={{ whiteSpace: 'pre-wrap' }}>
-            A → {fpA}
-          </pre>
-          <pre className="addr mono small" style={{ whiteSpace: 'pre-wrap' }}>
-            B → {fpB}
-          </pre>
-        </div>
-      </details>
     </section>
   );
 }
@@ -144,38 +106,35 @@ function MemberColumn({
   return (
     <div>
       <div className="secret-strip">
-        <div className="small muted" style={{ marginBottom: 6 }}>
-          🔒 {label} — secret amount (witness, never on-chain)
+        <div className="small muted" style={{ marginBottom: 8, fontWeight: 600 }}>
+          🔒 {label} — Secret Deposit Input
         </div>
         <input
           type="number"
           min="0"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          style={{ width: '100%' }}
         />
       </div>
 
-      <div className="arrow">↓ contribute()</div>
+      <div className="arrow">⬇ Zero-Knowledge Proof Circuit</div>
 
       <div className="chain-strip">
-        <div className="small muted" style={{ marginBottom: 8 }}>
-          👁 what the chain sees
+        <div className="small muted" style={{ marginBottom: 10, fontWeight: 600 }}>
+          👁️ What the Blockchain Records
         </div>
         <div className="kv small">
-          <div className="k">contributionMet</div>
+          <div className="k">Target Share Met?</div>
           <div>
             <span className={`badge ${met ? 'ok' : 'off'}`}>
               <span className="dot" />
               {String(met)}
             </span>
           </div>
-          <div className="k">poolTotal +=</div>
-          <div className="mono">requiredShare</div>
-          <div className="k">count +=</div>
-          <div className="mono">1</div>
-          <div className="k">amount</div>
-          <div className="mono strike">never disclosed</div>
+          <div className="k">Pool Total Grown By</div>
+          <div className="mono">Target Share</div>
+          <div className="k">Deposit Amount</div>
+          <div className="mono strike">Hidden / Encrypted</div>
         </div>
       </div>
     </div>

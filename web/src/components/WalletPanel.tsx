@@ -2,14 +2,6 @@ import { useState } from 'react';
 import type { UseWallet } from '../hooks/useWallet';
 import { truncateMiddle, copyToClipboard } from '../util/format';
 
-// ═══════════════════════════════════════════════════════════════════════
-// WalletPanel — connect / disconnect + connected identity and the service
-// URIs the wallet reports. Renders one of six states from useWallet()
-// (detecting / unavailable / idle / connecting / connected / error) and
-// exposes an injection-debug drawer + re-scan so wallet-detection issues are
-// diagnosable in the field.
-// ═══════════════════════════════════════════════════════════════════════
-
 export function WalletPanel({ wallet }: { wallet: UseWallet }) {
   const { status, connection, error, hint, injection, connect, disconnect, redetect } =
     wallet;
@@ -29,13 +21,13 @@ export function WalletPanel({ wallet }: { wallet: UseWallet }) {
     <section className="panel">
       <div className="row spread">
         <div>
-          <h2>Wallet</h2>
-          <p className="sub">Connect Lace on Midnight Preprod.</p>
+          <h2><span>👛</span> Wallet Connection</h2>
+          <p className="sub">Manage your Midnight Lace wallet connection and network address.</p>
         </div>
         <StatusBadge status={status} />
       </div>
 
-      {/* ── Action row ── */}
+      {/* Action Row */}
       <div className="row" style={{ marginTop: 4 }}>
         {status !== 'connected' ? (
           <button
@@ -45,88 +37,86 @@ export function WalletPanel({ wallet }: { wallet: UseWallet }) {
           >
             {status === 'connecting'
               ? 'Connecting…'
-              : 'Connect Lace'}
+              : 'Connect Lace Wallet'}
           </button>
         ) : (
-          <button className="danger" onClick={disconnect}>
-            Disconnect
+          <button className="danger small" onClick={disconnect}>
+            Disconnect Wallet
           </button>
         )}
         {(status === 'unavailable' || status === 'error') && (
-          <button className="ghost" onClick={() => void redetect()}>
-            Re-scan
+          <button className="ghost small" onClick={() => void redetect()}>
+            Re-scan Extension
           </button>
         )}
         {status === 'unavailable' && (
           <a
-            href="https://www.lace.io/"
+            href="https://midnight.network/tools/midnight-lace"
             target="_blank"
             rel="noreferrer"
             className="small muted"
           >
-            Get the Lace extension →
+            Get Midnight Lace Extension →
           </a>
         )}
       </div>
 
-      {/* ── Messages ── */}
+      {/* Messages */}
       {status === 'detecting' && (
-        <div className="notice" style={{ marginTop: 12 }}>
-          <span className="spinner" /> Looking for an injected Midnight wallet…
+        <div className="notice" style={{ marginTop: 14 }}>
+          <span className="spinner" /> Looking for Midnight Lace wallet extension…
         </div>
       )}
       {status === 'unavailable' && (
-        <div className="notice warn" style={{ marginTop: 12 }}>
-          No Midnight wallet detected. Install <strong>Lace</strong>, switch it
-          to the <strong>Preprod</strong> network, then reload this page.
+        <div className="notice warn" style={{ marginTop: 14 }}>
+          Midnight Lace wallet extension not detected. Please install <strong>Midnight Lace</strong>, set it to the <strong>Preprod</strong> network, then click <strong>Connect Lace Wallet</strong> above.
         </div>
       )}
       {error && (
-        <div className="notice warn" style={{ marginTop: 12 }}>
+        <div className="notice warn" style={{ marginTop: 14 }}>
           {error}
         </div>
       )}
       {hint && status !== 'connected' && (
-        <div className="notice" style={{ marginTop: 12 }}>
+        <div className="notice" style={{ marginTop: 14 }}>
           {hint}
         </div>
       )}
 
-      {/* ── Connected details ── */}
+      {/* Connected details */}
       {status === 'connected' && connection && (
         <div style={{ marginTop: 16 }}>
           <div className="kv">
-            <div className="k">Wallet</div>
-            <div>
+            <div className="k">Wallet Provider</div>
+            <div style={{ fontWeight: 600 }}>
               {connection.walletName}{' '}
               <span className="muted small">
-                (connector v{connection.apiVersion} · key {connection.connectorKey})
+                (v{connection.apiVersion})
               </span>
             </div>
 
-            <div className="k">Address</div>
+            <div className="k">Your Address</div>
             <div className="row" style={{ gap: 8 }}>
               <span className="addr mono" title={connection.state.address}>
                 {truncateMiddle(connection.state.address, 14, 10)}
               </span>
               <button
-                className="small"
-                style={{ padding: '4px 10px' }}
+                className="small ghost"
                 onClick={() => copy('address', connection.state.address)}
               >
                 {copied === 'address' ? 'Copied ✓' : 'Copy'}
               </button>
             </div>
 
-            <div className="k">Coin public key</div>
+            <div className="k">Coin Public Key</div>
             <div className="addr mono" title={connection.state.coinPublicKey}>
               {truncateMiddle(connection.state.coinPublicKey, 14, 10)}
             </div>
 
             {balanceEntries.length > 0 && (
               <>
-                <div className="k">Balance</div>
-                <div className="mono small">
+                <div className="k">Available Balance</div>
+                <div className="mono small" style={{ fontWeight: 700, color: 'var(--ok)' }}>
                   {balanceEntries
                     .map(([token, amt]) => `${String(amt)} ${token}`)
                     .join(' · ')}
@@ -134,37 +124,31 @@ export function WalletPanel({ wallet }: { wallet: UseWallet }) {
               </>
             )}
           </div>
-
-          <details style={{ marginTop: 14 }}>
-            <summary className="muted small" style={{ cursor: 'pointer' }}>
-              Service endpoints (as reported by the wallet)
-            </summary>
-            <div className="kv" style={{ marginTop: 10 }}>
-              <div className="k">Node</div>
-              <div className="mono small">{connection.uris.nodeUri}</div>
-              <div className="k">Indexer</div>
-              <div className="mono small">{connection.uris.indexerUri}</div>
-              <div className="k">Proof server</div>
-              <div className="mono small">{connection.uris.proverServerUri}</div>
-            </div>
-          </details>
         </div>
       )}
 
-      {/* ── Injection debug drawer ── always available for diagnosis. */}
-      <details style={{ marginTop: 14 }}>
+      {/* Collapseable Debug Info */}
+      <details style={{ marginTop: 16 }}>
         <summary className="muted small" style={{ cursor: 'pointer' }}>
-          Wallet injection debug
+          Technical Network & Diagnostic Info
         </summary>
-        <div className="kv" style={{ marginTop: 10 }}>
-          <div className="k">window.midnight</div>
-          <div className="mono small">{injection.hasMidnight ? 'present' : 'absent'}</div>
-          <div className="k">Keys</div>
+        <div className="kv" style={{ marginTop: 12 }}>
+          <div className="k">Injected Extension</div>
+          <div className="mono small">{injection.hasMidnight ? 'Detected' : 'Not Found'}</div>
+          <div className="k">Detected Keys</div>
           <div className="mono small">
-            {injection.keys.length ? injection.keys.join(', ') : '—'}
+            {injection.keys.length ? injection.keys.join(', ') : 'None'}
           </div>
-          <div className="k">Chosen key</div>
-          <div className="mono small">{injection.chosenKey ?? '—'}</div>
+          <div className="k">Active Key</div>
+          <div className="mono small">{injection.chosenKey ?? 'None'}</div>
+          {connection && (
+            <>
+              <div className="k">Node Endpoint</div>
+              <div className="mono small">{connection.uris.nodeUri}</div>
+              <div className="k">Indexer Endpoint</div>
+              <div className="mono small">{connection.uris.indexerUri}</div>
+            </>
+          )}
         </div>
       </details>
     </section>
@@ -176,9 +160,9 @@ function StatusBadge({ status }: { status: UseWallet['status'] }) {
     detecting: { cls: 'warn', label: 'Detecting' },
     connected: { cls: 'ok', label: 'Connected' },
     connecting: { cls: 'warn', label: 'Connecting' },
-    idle: { cls: 'off', label: 'Not connected' },
-    unavailable: { cls: 'off', label: 'No wallet' },
-    error: { cls: 'warn', label: 'Error' },
+    idle: { cls: 'off', label: 'Not Connected' },
+    unavailable: { cls: 'off', label: 'Extension Standby' },
+    error: { cls: 'warn', label: 'Connection Error' },
   } as const;
   const { cls, label } = map[status];
   return (

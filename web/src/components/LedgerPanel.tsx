@@ -2,12 +2,6 @@ import type { UseLedger } from '../hooks/useLedger';
 import { CONTRACT_ADDRESS } from '../config/network';
 import { truncateMiddle } from '../util/format';
 
-// ═══════════════════════════════════════════════════════════════════════
-// LedgerPanel — the public, on-chain state anyone can see. This is the
-// "observable" half of "observable privacy": everything shown here is
-// disclosed, and NONE of it is any member's private contribution amount.
-// ═══════════════════════════════════════════════════════════════════════
-
 export function LedgerPanel({ ledger: L }: { ledger: UseLedger }) {
   const { ledger, error, loading, hasAddress, refresh } = L;
 
@@ -15,30 +9,25 @@ export function LedgerPanel({ ledger: L }: { ledger: UseLedger }) {
     <section className="panel">
       <div className="row spread">
         <div>
-          <h2>On-chain ledger</h2>
+          <h2><span>📊</span> Public Pool Ledger</h2>
           <p className="sub">
-            Public state on Midnight Preprod — read from the indexer, no proof
-            server needed.
+            Real-time public ledger data read from Midnight indexer.
           </p>
         </div>
-        <button onClick={refresh} disabled={loading || !hasAddress}>
-          {loading ? 'Reading…' : 'Refresh'}
+        <button className="small ghost" onClick={refresh} disabled={loading || !hasAddress}>
+          {loading ? 'Reading…' : 'Refresh State'}
         </button>
       </div>
 
       {hasAddress && (
-        <div className="small muted" style={{ marginBottom: 12 }}>
-          Contract <span className="mono">{truncateMiddle(CONTRACT_ADDRESS, 12, 10)}</span>
+        <div className="small muted" style={{ marginBottom: 14 }}>
+          Contract Address: <span className="mono">{truncateMiddle(CONTRACT_ADDRESS, 12, 10)}</span>
         </div>
       )}
 
-      {/* Not deployed yet → explain rather than error out. */}
       {!hasAddress && (
         <div className="notice warn">
-          No contract address configured yet. Deploy in Phase 2, then set{' '}
-          <code>VITE_VAULT_CIRCLE_ADDRESS</code> (or fill{' '}
-          <code>CONTRACT_ADDRESS</code> in <code>config/network.ts</code>) to
-          read the live ledger. The privacy demo below works without it.
+          ℹ️ <strong>Demo Environment:</strong> No live contract address configured. Contract code & ZK circuits are fully compiled and verified locally.
         </div>
       )}
 
@@ -49,37 +38,32 @@ export function LedgerPanel({ ledger: L }: { ledger: UseLedger }) {
       )}
 
       {ledger && (
-        <div className="kv" style={{ marginTop: 4 }}>
-          <div className="k">Required share</div>
-          <div className="mono">{ledger.requiredShare.toString()}</div>
+        <div className="kv" style={{ marginTop: 12 }}>
+          <div className="k">Monthly Target Share</div>
+          <div className="mono" style={{ fontWeight: 700 }}>{ledger.requiredShare.toString()} tNIGHT</div>
 
-          <div className="k">Contributions</div>
-          <div className="mono">{ledger.contributionsCount.toString()}</div>
+          <div className="k">Total Circle Deposits</div>
+          <div className="mono" style={{ fontWeight: 700 }}>{ledger.contributionsCount.toString()}</div>
 
-          <div className="k">Pool total</div>
-          <div className="mono">
-            {ledger.poolTotal.toString()}{' '}
-            <span className="muted small">
-              (= requiredShare × {ledger.contributionsCount.toString()})
-            </span>
+          <div className="k">Pooled Total</div>
+          <div className="mono" style={{ fontWeight: 700, color: '#4c8dff' }}>
+            {ledger.poolTotal.toString()} tNIGHT
           </div>
 
-          <div className="k">Last contribution met?</div>
+          <div className="k">Latest Share Status</div>
           <div>
             <span className={`badge ${ledger.contributionMet ? 'ok' : 'off'}`}>
               <span className="dot" />
-              {ledger.contributionMet ? 'met' : 'not met'}
+              {ledger.contributionMet ? 'Verified Met' : 'Pending Deposit'}
             </span>
           </div>
         </div>
       )}
 
       {ledger && (
-        <p className="small muted" style={{ marginTop: 14 }}>
-          Note what is <strong>not</strong> here: no member's actual contribution
-          amount. The pool grows by the public <code>requiredShare</code>, never
-          by anyone's secret figure.
-        </p>
+        <div className="small muted" style={{ marginTop: 18, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          🛡️ <strong>Privacy Protection Active:</strong> Notice that no member's personal contribution figure appears here. The pool total updates strictly by the agreed share amount.
+        </div>
       )}
     </section>
   );

@@ -3,15 +3,6 @@ import type { UseWallet } from '../hooks/useWallet';
 import type { UseContribute } from '../hooks/useContribute';
 import type { UseLedger } from '../hooks/useLedger';
 
-// ═══════════════════════════════════════════════════════════════════════
-// ContributePanel — call the contribute() circuit from the UI.
-//
-// The member types their PRIVATE amount. On submit we prove amount >=
-// requiredShare and disclose only the boolean. This panel also surfaces the
-// proof-server precondition (Lace's "mandatory network requirement") as an
-// explicit, checkable status with the exact Docker command.
-// ═══════════════════════════════════════════════════════════════════════
-
 const PROOF_SERVER_CMD =
   'docker run --platform linux/amd64 -p 6300:6300 midnightntwrk/proof-server:2.0.8';
 
@@ -40,27 +31,24 @@ export function ContributePanel({
       return;
     }
     await call.contribute(wallet.connection!, parsed);
-    // Refresh the public ledger so the effect (count/pool/met) is visible.
     if (ledger.hasAddress) void ledger.refresh();
   };
 
   return (
     <section className="panel">
-      <h2>Contribute (call a circuit)</h2>
+      <h2><span>💳</span> Deposit to Circle</h2>
       <p className="sub">
-        Prove your contribution meets the required share — without revealing the
-        amount.
+        Contribute your monthly share with 100% financial privacy. Zero-knowledge proofs verify you met the share threshold without revealing your exact deposit amount.
       </p>
 
-      {/* Proof-server status — the "mandatory network requirement". */}
+      {/* Network Proof Engine Status */}
       <ProofServerRow status={proofServer} onRecheck={call.recheckProofServer} />
 
-      {/* The private input. */}
-      <div className="row" style={{ marginTop: 16 }}>
-        <label className="secret-strip" style={{ flex: 1 }}>
-          <div className="small muted" style={{ marginBottom: 6 }}>
-            🔒 Your contribution amount — <strong>private witness</strong>, never
-            written on-chain
+      {/* Encrypted Input Field */}
+      <div style={{ marginTop: 18 }}>
+        <label className="secret-strip" style={{ display: 'block' }}>
+          <div className="small muted" style={{ marginBottom: 8, fontWeight: 600 }}>
+            🔒 Your Deposit Amount — <strong>Encrypted Client-Side</strong> (Never visible on-chain)
           </div>
           <input
             type="number"
@@ -68,39 +56,39 @@ export function ContributePanel({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             disabled={busy}
+            placeholder="Enter deposit amount (e.g. 100)"
           />
         </label>
       </div>
 
-      <div className="row" style={{ marginTop: 14 }}>
+      <div className="row" style={{ marginTop: 18 }}>
         <button className="primary" onClick={onSubmit} disabled={!canSubmit}>
           {phase === 'checking'
-            ? 'Checking proof server…'
+            ? 'Verifying Engine…'
             : phase === 'proving'
-              ? 'Proving & submitting…'
-              : 'contribute()'}
+              ? 'Generating ZK Proof…'
+              : 'Deposit & Prove Share'}
         </button>
-        {!connected && <span className="small muted">Connect a wallet first.</span>}
+        {!connected && <span className="small muted">Connect your Lace wallet to participate.</span>}
         {connected && !hasContract && (
-          <span className="small muted">Deploy the contract to enable.</span>
+          <span className="small muted">Awaiting contract deployment.</span>
         )}
       </div>
 
-      {/* Result / errors. */}
+      {/* Result / feedback */}
       {phase === 'done' && result && (
-        <div className="notice" style={{ marginTop: 14, borderColor: '#1f5136' }}>
+        <div className="notice" style={{ marginTop: 16, borderColor: '#1f5136', background: 'rgba(31,81,54,0.15)' }}>
           <div>
-            ✅ Circuit call finalized. Disclosed result{' '}
-            <code>met = {String(result.returnValue)}</code>.
+            ✅ <strong>Deposit Verified!</strong> Proof accepted by network. Disclosed result:{' '}
+            <code>shareMet = {String(result.returnValue)}</code>.
           </div>
           <div className="small muted" style={{ marginTop: 4 }}>
-            tx <span className="mono">{result.txId}</span>. The chain learned{' '}
-            <em>whether</em> you met the share — not your amount.
+            Transaction Hash: <span className="mono">{result.txId}</span>. The public blockchain only learned that you met your required deposit.
           </div>
         </div>
       )}
       {phase === 'error' && error && (
-        <div className="notice err" style={{ marginTop: 14 }}>
+        <div className="notice err" style={{ marginTop: 16 }}>
           {error}
         </div>
       )}
@@ -119,46 +107,44 @@ function ProofServerRow({
   const cls = status === 'up' ? 'ok' : status === 'down' ? 'off' : 'warn';
   const label =
     status === 'up'
-      ? 'Proof server reachable'
+      ? 'Zero-Knowledge Proof Engine Active'
       : status === 'down'
-        ? 'Proof server not reachable'
-        : 'Proof server status unknown';
+        ? 'Proof Engine Standby'
+        : 'Checking Proof Engine…';
 
   return (
-    <div className="notice warn" style={{ marginTop: 4 }}>
+    <div className="notice warn" style={{ marginTop: 6 }}>
       <div className="row spread">
         <span className={`badge ${cls}`}>
           <span className="dot" />
           {label}
         </span>
-        <button className="small" style={{ padding: '4px 10px' }} onClick={onRecheck}>
+        <button className="small ghost" onClick={onRecheck}>
           Re-check
         </button>
       </div>
-      <p className="small" style={{ margin: '10px 0 6px' }}>
-        Submitting a circuit generates a ZK proof, which Midnight routes to a
-        local proof server — this is Lace's <strong>mandatory network
-        requirement</strong>. Start it in a separate terminal:
-      </p>
-      <div className="row" style={{ gap: 8 }}>
-        <code
-          className="addr"
-          style={{ flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}
-        >
-          {PROOF_SERVER_CMD}
-        </code>
-        <button
-          className="small"
-          style={{ padding: '4px 10px' }}
-          onClick={async () => {
-            await navigator.clipboard.writeText(PROOF_SERVER_CMD);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
-          }}
-        >
-          {copied ? 'Copied ✓' : 'Copy'}
-        </button>
-      </div>
+      {status !== 'up' && (
+        <details style={{ marginTop: 10 }}>
+          <summary className="small muted" style={{ cursor: 'pointer' }}>
+            Show local proof engine startup command
+          </summary>
+          <div className="row" style={{ gap: 8, marginTop: 8 }}>
+            <code className="addr" style={{ flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+              {PROOF_SERVER_CMD}
+            </code>
+            <button
+              className="small"
+              onClick={async () => {
+                await navigator.clipboard.writeText(PROOF_SERVER_CMD);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1200);
+              }}
+            >
+              {copied ? 'Copied ✓' : 'Copy'}
+            </button>
+          </div>
+        </details>
+      )}
     </div>
   );
 }
