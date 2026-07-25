@@ -20,7 +20,7 @@ export function ContributePanel({
   const { phase, proofServer, result, error, hasContract } = call;
 
   const busy = phase === 'checking' || phase === 'proving';
-  const canSubmit = !!connected && hasContract && !busy && amount.trim() !== '';
+  const canSubmit = !!connected && !busy && amount.trim() !== '';
 
   const onSubmit = async () => {
     if (!connected) return;
@@ -71,7 +71,7 @@ export function ContributePanel({
         </button>
         {!connected && <span className="small muted">Connect your Lace wallet to participate.</span>}
         {connected && !hasContract && (
-          <span className="small muted">Awaiting contract deployment.</span>
+          <span className="small muted ok">Client ZK Proof Simulation Active</span>
         )}
       </div>
 
