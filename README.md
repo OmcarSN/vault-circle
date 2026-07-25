@@ -134,19 +134,21 @@ vault-circle/
 
 ## Deploy
 
-To deploy to Midnight Preview:
-
-```bash
-compact deploy contracts/counter.compact --network preview
-```
+We have a custom deployment pipeline configured for Midnight Preprod and Preview networks.
 
 To deploy to Midnight Preprod:
 
 ```bash
-compact deploy contracts/counter.compact --network preprod
+npm run deploy:preprod
 ```
 
-The `constructor` takes one argument: the required share per cycle (e.g., `50` for 50 tNIGHT).
+To deploy to Midnight Preview:
+
+```bash
+npm run deploy:preview
+```
+
+*Note: The deployment script relies on a synced dust wallet. If the Midnight network's dust generation is currently stalled, the deployment will wait for sync.*
 
 ## Initial Idea
 
