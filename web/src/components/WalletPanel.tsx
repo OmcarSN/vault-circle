@@ -21,7 +21,7 @@ export function WalletPanel({ wallet }: { wallet: UseWallet }) {
     <section className="panel">
       <div className="row spread">
         <div>
-          <h2><span>👛</span> Wallet Connection</h2>
+          <h2>Wallet Connection</h2>
           <p className="sub">Manage your Midnight Lace wallet connection and network address.</p>
         </div>
         <StatusBadge status={status} />
