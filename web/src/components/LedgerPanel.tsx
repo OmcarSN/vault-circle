@@ -42,19 +42,27 @@ export function LedgerPanel({ ledger: L }: { ledger: UseLedger }) {
           <div className="k">Monthly Target Share</div>
           <div className="mono" style={{ fontWeight: 700 }}>{ledger.requiredShare.toString()} tNIGHT</div>
 
-          <div className="k">Total Circle Deposits</div>
-          <div className="mono" style={{ fontWeight: 700 }}>{ledger.contributionsCount.toString()}</div>
+          <div className="k">Total Circle Members</div>
+          <div className="mono" style={{ fontWeight: 700 }}>{ledger.memberCount.toString()}</div>
+
+          <div className="k">Current Cycle Epoch</div>
+          <div className="mono" style={{ fontWeight: 700 }}>{(ledger.cycleCount + 1n).toString()}</div>
+
+          <div className="k">Deposits This Cycle</div>
+          <div className="mono" style={{ fontWeight: 700 }}>
+            {ledger.membersContributedThisCycle.toString()} / {ledger.memberCount.toString()}
+          </div>
 
           <div className="k">Pooled Total</div>
           <div className="mono" style={{ fontWeight: 700, color: '#4c8dff' }}>
             {ledger.poolTotal.toString()} tNIGHT
           </div>
 
-          <div className="k">Latest Share Status</div>
+          <div className="k">Pool Solvency Status</div>
           <div>
-            <span className={`badge ${ledger.contributionMet ? 'ok' : 'off'}`}>
+            <span className={`badge ${ledger.poolSolvent ? 'ok' : 'danger'}`}>
               <span className="dot" />
-              {ledger.contributionMet ? 'Verified Met' : 'Pending Deposit'}
+              {ledger.poolSolvent ? 'Solvent' : 'Insolvent (Disputed)'}
             </span>
           </div>
         </div>

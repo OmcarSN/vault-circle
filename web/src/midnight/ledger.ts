@@ -16,16 +16,22 @@
 
 import { ENDPOINTS, ACTIVE_NETWORK } from '../config/network';
 
-/** The four public ledger fields of the Vault Circle contract. */
+/** The public ledger fields of the multi-member Vault Circle ROSCA contract. */
 export interface VaultLedger {
   /** Agreed contribution per member per cycle (public). */
   requiredShare: bigint;
-  /** Whether the MOST RECENT contribution met the share. */
-  contributionMet: boolean;
-  /** How many contributions have been recorded. */
-  contributionsCount: bigint;
+  /** Number of members in the circle. */
+  memberCount: bigint;
+  /** Index of the member whose turn it is to receive the payout. */
+  currentRecipientIndex: bigint;
+  /** Number of members who have successfully contributed this cycle. */
+  membersContributedThisCycle: bigint;
   /** Running pool total, accrued in units of requiredShare. */
   poolTotal: bigint;
+  /** Number of complete cycles the ROSCA has gone through. */
+  cycleCount: bigint;
+  /** True if the pool is solvent, false if emergency insolvent. */
+  poolSolvent: boolean;
 }
 
 export type LedgerReadError =
@@ -117,9 +123,12 @@ export async function readLedger(address: string): Promise<LedgerReadResult> {
       ok: true,
       ledger: {
         requiredShare: BigInt(decoded.requiredShare),
-        contributionMet: Boolean(decoded.contributionMet),
-        contributionsCount: BigInt(decoded.contributionsCount),
+        memberCount: BigInt(decoded.memberCount),
+        currentRecipientIndex: BigInt(decoded.currentRecipientIndex),
+        membersContributedThisCycle: BigInt(decoded.membersContributedThisCycle),
         poolTotal: BigInt(decoded.poolTotal),
+        cycleCount: BigInt(decoded.cycleCount),
+        poolSolvent: Boolean(decoded.poolSolvent),
       },
     };
   } catch (e) {
