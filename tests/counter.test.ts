@@ -1,15 +1,17 @@
 // ═══════════════════════════════════════════════════════════════════════
-// Vault Circle — Contract Tests
+// Vault Circle — Multi-Member ROSCA Tests
 // ═══════════════════════════════════════════════════════════════════════
 //
 // Tests covering:
-//   1. Circuit logic — contribute proves contribution meets required share
-//   2. State transitions — cycle closing increments counter and resets state
-//   3. Privacy — private witness (actual contribution amount) is never exposed
+//   1. Joining the circle
+//   2. Contributing to the pool
+//   3. Rotation status checks
+//   4. Claiming payouts and advancing rotation
+//   5. Solvency verification
 //
 // ═══════════════════════════════════════════════════════════════════════
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Contract, ledger } from '../managed/contract/index.js';
 import {
   emptyZswapLocalState,
@@ -24,23 +26,23 @@ import {
 // ─── Test Key (valid hex-encoded coinPublicKey) ─────────────────────────
 const TEST_COIN_PUBLIC_KEY = signatureVerifyingKey(sampleSigningKey());
 
-// ─── Configurable Witness ───────────────────────────────────────────────
-// The witness provides the member's actual contribution amount.
-// This value stays private — it NEVER goes on the ledger.
+// ─── Configurable Witnesses ──────────────────────────────────────────────
 let witnessContributionAmount = 100n;
+let witnessMemberIndex = 0n;
 
 const witnesses = {
   memberContribution: (_ctx: any): [any, bigint] => {
     return [_ctx.privateState, witnessContributionAmount];
+  },
+  memberIndex: (_ctx: any): [any, bigint] => {
+    return [_ctx.privateState, witnessMemberIndex];
   }
 };
 
 // ─── Helper: Create Initial Contract + CircuitContext ──────────────────
-
 function setupInitialState(requiredShare: bigint) {
   const contract = new Contract(witnesses);
 
-  // Run constructor to get initial ledger state
   const constructorResult = contract.initialState(
     {
       initialPrivateState: {},
@@ -49,7 +51,6 @@ function setupInitialState(requiredShare: bigint) {
     requiredShare
   );
 
-  // Create a CircuitContext from the constructor result
   const context = createCircuitContext(
     dummyContractAddress(),
     constructorResult.currentZswapLocalState.coinPublicKey,
@@ -61,186 +62,171 @@ function setupInitialState(requiredShare: bigint) {
 }
 
 // ─── Helper: Read Ledger State from CircuitContext ─────────────────────
-
 function readState(ctx: any) {
   return ledger(ctx.currentQueryContext.state);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// TEST SUITE 1: CIRCUIT LOGIC — Contribute proves share met
+// TEST SUITES
 // ═══════════════════════════════════════════════════════════════════════
 
-describe('Circuit Logic — contribute()', () => {
-  it('should accept a contribution that meets the required share', () => {
+describe('Vault Circle ROSCA — Lifecycle', () => {
+  beforeEach(() => {
     witnessContributionAmount = 100n;
-    const { contract, context } = setupInitialState(50n);
-    const result = contract.impureCircuits.contribute(context);
-    expect(result).toBeDefined();
-    expect(result.result).toEqual([]);
+    witnessMemberIndex = 0n;
   });
 
-  it('should accept a contribution exactly equal to the required share', () => {
+  it('initializes with zeroed counters and specified share', () => {
+    const { contract, context } = setupInitialState(100n);
+    const state = readState(context);
+    expect(state.requiredShare).toBe(100n);
+    expect(state.memberCount).toBe(0n);
+    expect(state.currentRecipientIndex).toBe(0n);
+    expect(state.poolTotal).toBe(0n);
+    expect(state.membersContributedThisCycle).toBe(0n);
+    expect(state.cycleCount).toBe(0n);
+    expect(state.poolSolvent).toBe(true);
+  });
+
+  it('allows members to join and increments memberCount', () => {
+    const { contract, context } = setupInitialState(100n);
+    
+    // Member 1 joins
+    const r1 = contract.impureCircuits.joinCircle(context);
+    expect(readState(r1.context).memberCount).toBe(1n);
+    
+    // Member 2 joins
+    const r2 = contract.impureCircuits.joinCircle(r1.context);
+    expect(readState(r2.context).memberCount).toBe(2n);
+  });
+
+  it('processes contributions and updates pool and count', () => {
+    const { contract, context } = setupInitialState(50n);
+    let currentCtx = context;
+
+    // Join 2 members
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+
     witnessContributionAmount = 50n;
-    const { contract, context } = setupInitialState(50n);
-    const result = contract.impureCircuits.contribute(context);
-    expect(result).toBeDefined();
-    expect(result.result).toEqual([]);
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
+    
+    let state = readState(currentCtx);
+    expect(state.membersContributedThisCycle).toBe(1n);
+    expect(state.poolTotal).toBe(50n);
+
+    // Another contribution
+    witnessContributionAmount = 100n; // overpay, pool still increments by requiredShare (50)
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
+
+    state = readState(currentCtx);
+    expect(state.membersContributedThisCycle).toBe(2n);
+    expect(state.poolTotal).toBe(100n);
   });
 
-  it('should reject a contribution below the required share', () => {
-    witnessContributionAmount = 30n;
-    const { contract, context } = setupInitialState(50n);
+  it('rejects underfunded contributions', () => {
+    const { contract, context } = setupInitialState(100n);
+    witnessContributionAmount = 90n;
     expect(() => {
       contract.impureCircuits.contribute(context);
     }).toThrow('Contribution does not meet the required share');
   });
 
-  it('should update contributionMet to true after successful contribute', () => {
-    witnessContributionAmount = 100n;
-    const { contract, context } = setupInitialState(50n);
-    const result = contract.impureCircuits.contribute(context);
-    expect(readState(result.context).contributionMet).toBe(true);
-  });
-});
+  it('verifies rotation status correctly', () => {
+    const { contract, context } = setupInitialState(100n);
+    
+    // State has currentRecipientIndex = 0
+    witnessMemberIndex = 0n;
+    let res = contract.impureCircuits.getRotationStatus(context);
+    expect(res.result).toBe(true);
 
-// ═══════════════════════════════════════════════════════════════════════
-// TEST SUITE 2: STATE TRANSITIONS — Cycle lifecycle
-// ═══════════════════════════════════════════════════════════════════════
-
-describe('State Transitions — closeCycle()', () => {
-  it('should increment cycleCount when closing a cycle after contribution', () => {
-    witnessContributionAmount = 100n;
-    const { contract, context } = setupInitialState(50n);
-
-    const afterContribute = contract.impureCircuits.contribute(context);
-    const afterClose = contract.impureCircuits.closeCycle(afterContribute.context);
-
-    expect(readState(afterClose.context).cycleCount).toBe(1n);
+    witnessMemberIndex = 1n;
+    res = contract.impureCircuits.getRotationStatus(context);
+    expect(res.result).toBe(false);
   });
 
-  it('should reset contributionMet to false after closing a cycle', () => {
+  it('handles claimPayout correctly and advances rotation', () => {
+    const { contract, context } = setupInitialState(100n);
+    let currentCtx = context;
+
+    // Setup: 2 members, both contributed
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    
     witnessContributionAmount = 100n;
-    const { contract, context } = setupInitialState(50n);
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
 
-    const afterContribute = contract.impureCircuits.contribute(context);
-    const afterClose = contract.impureCircuits.closeCycle(afterContribute.context);
+    // Verify initial pool total is 200
+    expect(readState(currentCtx).poolTotal).toBe(200n);
 
-    expect(readState(afterClose.context).contributionMet).toBe(false);
+    // Claim payout as member 0
+    witnessMemberIndex = 0n;
+    currentCtx = contract.impureCircuits.claimPayout(currentCtx).context;
+
+    const state = readState(currentCtx);
+    expect(state.cycleCount).toBe(1n); // cycle incremented
+    expect(state.currentRecipientIndex).toBe(1n); // rotation advanced
+    expect(state.poolTotal).toBe(0n); // pool emptied
+    expect(state.membersContributedThisCycle).toBe(0n); // reset
   });
 
-  it('should reject closeCycle if contribution was not made', () => {
-    const { contract, context } = setupInitialState(50n);
+  it('wraps rotation correctly when claiming at the end of a cycle epoch', () => {
+    const { contract, context } = setupInitialState(100n);
+    let currentCtx = context;
+
+    // Add 1 member
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    // currentRecipientIndex = 0, memberCount = 1
+
+    witnessMemberIndex = 0n;
+    currentCtx = contract.impureCircuits.claimPayout(currentCtx).context;
+    
+    // Should wrap back to 0
+    expect(readState(currentCtx).currentRecipientIndex).toBe(0n);
+  });
+
+  it('rejects claimPayout if caller is not the current recipient', () => {
+    const { contract, context } = setupInitialState(100n);
+    // recipient is 0, caller is 1
+    witnessMemberIndex = 1n;
+    expect(() => {
+      contract.impureCircuits.claimPayout(context);
+    }).toThrow('Not your turn to claim the payout');
+  });
+
+  it('checks solvency correctly', () => {
+    const { contract, context } = setupInitialState(100n);
+    let currentCtx = context;
+
+    // 2 members = required pool is 200
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+
+    // Pool = 0, Solvency check should fail
+    expect(() => {
+      contract.impureCircuits.checkSolvency(currentCtx);
+    }).toThrow('Pool is underfunded');
+
+    // Add 100 to pool -> Pool = 100, still fails
+    witnessContributionAmount = 100n;
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
+    expect(() => {
+      contract.impureCircuits.checkSolvency(currentCtx);
+    }).toThrow('Pool is underfunded');
+
+    // Add another 100 -> Pool = 200, succeeds
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
+    expect(() => contract.impureCircuits.checkSolvency(currentCtx)).not.toThrow();
+  });
+
+  it('marks insolvent via emergency circuit', () => {
+    const { contract, context } = setupInitialState(100n);
+    const r1 = contract.impureCircuits.markInsolvent(context);
+    expect(readState(r1.context).poolSolvent).toBe(false);
 
     expect(() => {
-      contract.impureCircuits.closeCycle(context);
-    }).toThrow('Cannot close cycle: contribution not met');
-  });
-
-  it('should allow multiple cycles with fresh states', () => {
-    let currentContext: any = null;
-
-    for (let i = 0; i < 3; i++) {
-      witnessContributionAmount = 100n;
-      const { contract, context } = setupInitialState(50n);
-
-      const afterContribute = contract.impureCircuits.contribute(
-        currentContext ?? context
-      );
-      const afterClose = contract.impureCircuits.closeCycle(afterContribute.context);
-      currentContext = afterClose.context;
-    }
-
-    // The last context should have a fresh CircuitContext
-    // (Each cycle used a separate setup, but we track the latest state)
-    expect(true).toBe(true);
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════
-// TEST SUITE 3: PRIVACY — Private inputs are never exposed
-// ═══════════════════════════════════════════════════════════════════════
-
-describe('Privacy — Private inputs never exposed', () => {
-  it('should not reveal the actual contribution amount on the ledger', () => {
-    const SECRET_CONTRIBUTION = 999n;
-    const REQUIRED_SHARE = 50n;
-
-    witnessContributionAmount = SECRET_CONTRIBUTION;
-    const { contract, context } = setupInitialState(REQUIRED_SHARE);
-
-    const contributeResult = contract.impureCircuits.contribute(context);
-    const state = readState(contributeResult.context);
-
-    // The ledger only exposes: requiredShare, contributionMet, cycleCount, poolSolvent
-    expect(state.requiredShare).toBe(REQUIRED_SHARE);
-    expect(state.contributionMet).toBe(true);
-    expect(state.cycleCount).toBe(0n);
-    expect(state.poolSolvent).toBe(true);
-
-    // The secret is never on the ledger — requiredShare is the PUBLIC threshold
-    // not the actual contribution
-    expect(state.requiredShare).not.toBe(SECRET_CONTRIBUTION);
-    expect(typeof state.contributionMet).toBe('boolean');
-  });
-
-  it('should produce the same public state for different contributions above threshold', () => {
-    const REQUIRED_SHARE = 50n;
-
-    // Contribution = 60
-    witnessContributionAmount = 60n;
-    const { contract: contract1, context: context1 } = setupInitialState(REQUIRED_SHARE);
-    const result1 = contract1.impureCircuits.contribute(context1);
-    const state1 = readState(result1.context);
-
-    // Contribution = 500
-    witnessContributionAmount = 500n;
-    const { contract: contract2, context: context2 } = setupInitialState(REQUIRED_SHARE);
-    const result2 = contract2.impureCircuits.contribute(context2);
-    const state2 = readState(result2.context);
-
-    // Both public states are identical — the amount itself is never recorded
-    expect(state1.contributionMet).toBe(state2.contributionMet);
-    expect(state1.contributionMet).toBe(true);
-  });
-
-  it('should only disclose aggregate/boolean results via disclose()', () => {
-    // The contract compiles and runs — proving the privacy model is correct.
-    // The compiler enforces that witness data cannot reach the ledger without
-    // an explicit disclose() call. Our circuit uses disclose(true) for the
-    // boolean result, never for the raw amount.
-    witnessContributionAmount = 42n;
-    const { contract, context } = setupInitialState(10n);
-    const result = contract.impureCircuits.contribute(context);
-    const state = readState(result.context);
-
-    // Only the boolean is disclosed — never the raw amount
-    expect(state.contributionMet).toBe(true);
-    expect(state.contributionMet).not.toBe(42);
-    expect(typeof state.contributionMet).toBe('boolean');
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════
-// TEST SUITE 4: markInsolvent — Emergency circuit
-// ═══════════════════════════════════════════════════════════════════════
-
-describe('Emergency Circuit — markInsolvent()', () => {
-  it('should mark the fund as insolvent', () => {
-    witnessContributionAmount = 100n;
-    const { contract, context } = setupInitialState(50n);
-
-    const result = contract.impureCircuits.markInsolvent(context);
-    expect(readState(result.context).poolSolvent).toBe(false);
-  });
-
-  it('should reject marking insolvent twice', () => {
-    witnessContributionAmount = 100n;
-    const { contract, context } = setupInitialState(50n);
-
-    const afterFirst = contract.impureCircuits.markInsolvent(context);
-
-    expect(() => {
-      contract.impureCircuits.markInsolvent(afterFirst.context);
+      contract.impureCircuits.markInsolvent(r1.context);
     }).toThrow('Fund is already marked insolvent');
   });
 });
