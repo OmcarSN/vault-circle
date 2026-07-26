@@ -10,7 +10,12 @@ export function Layout() {
       {/* ── Top Bar / Header ── */}
       <header className="top-nav">
         <Link to="/" className="brand" style={{ textDecoration: 'none' }}>
-          <div className="logo">🛡️</div>
+          <div className="logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 4L12 20L20 4H15.5L12 11.5L8.5 4H4Z" fill="white" />
+              <path d="M12 20L15.5 11.5L20 4L12 20Z" fill="rgba(255, 255, 255, 0.4)" />
+            </svg>
+          </div>
           <div>
             <div className="brand-title">Vault Circle</div>
             <div className="brand-subtitle">Private Savings Circle on Midnight</div>
