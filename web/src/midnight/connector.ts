@@ -128,10 +128,7 @@ export function getConnector(): DAppConnectorAPI {
   const { chosenKey } = inspectInjection();
   const connector = chosenKey ? window.midnight?.[chosenKey] : undefined;
   if (!connector) {
-    throw new Error(
-      'No Midnight wallet detected. Please install the Midnight Lace wallet extension, ' +
-        'ensure it is enabled and set to Preprod network, then try connecting again.',
-    );
+    throw new Error('Lace wallet not detected — install it from lace.io. Ensure it is enabled and set to the Preprod network.');
   }
   return connector;
 }
@@ -161,12 +158,19 @@ export async function connectLace(): Promise<ConnectionInfo> {
 
   // Support enable() (CIP-30) or connect('testnet'/'preprod')
   let api: DAppConnectorWalletAPI;
-  if (typeof connector.enable === 'function') {
-    api = await connector.enable();
-  } else if (typeof (connector as any).connect === 'function') {
-    api = await (connector as any).connect('preprod');
-  } else {
-    throw new Error('Wallet connector does not expose an enable() or connect() method.');
+  try {
+    if (typeof connector.enable === 'function') {
+      api = await connector.enable();
+    } else if (typeof (connector as any).connect === 'function') {
+      api = await (connector as any).connect('preprod');
+    } else {
+      throw new Error('Wallet connector does not expose an enable() or connect() method.');
+    }
+  } catch (err: any) {
+    if (err?.message?.toLowerCase().includes('reject') || err?.code === 4001 || String(err).toLowerCase().includes('reject')) {
+      throw new Error('Connection rejected. Please approve the connection request in the Lace wallet popup.');
+    }
+    throw new Error(`Wallet connection failed: ${err?.message || String(err)}`);
   }
 
   const fetchUris = typeof connector.serviceUriConfig === 'function'
