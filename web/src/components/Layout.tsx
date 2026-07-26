@@ -11,22 +11,13 @@ export function Layout() {
       <header className="top-nav">
         <Link to="/" className="brand" style={{ textDecoration: 'none' }}>
           <div className="logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3 6L16 28L29 6H21.5L16 16.5L10.5 6H3Z" fill="url(#paint0_linear)" />
-              <path d="M16 28L21.5 16.5L29 6L16 28Z" fill="url(#paint1_linear)" style={{ mixBlendMode: 'overlay' }} />
-              <path d="M16 28L10.5 16.5L16 6L21.5 16.5L16 28Z" fill="url(#paint2_linear)" opacity="0.6" />
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' }}>
+              <path fillRule="evenodd" clipRule="evenodd" d="M2.25 4C2.25 3.3 2.95 2.8 3.6 3.1L12 7.2L20.4 3.1C21.05 2.8 21.75 3.3 21.75 4V6.5C21.75 6.9 21.5 7.25 21.15 7.4L12 11.75L2.85 7.4C2.5 7.25 2.25 6.9 2.25 6.5V4ZM12 21.25L2.5 12.5V9.5L12 14L21.5 9.5V12.5L12 21.25Z" fill="#FFFFFF" />
+              <path d="M12 21.25L2.5 12.5V9.5L12 14L21.5 9.5V12.5L12 21.25Z" fill="url(#bold_grad)" />
               <defs>
-                <linearGradient id="paint0_linear" x1="3" y1="6" x2="29" y2="28" gradientUnits="userSpaceOnUse">
+                <linearGradient id="bold_grad" x1="12" y1="9.5" x2="12" y2="21.25" gradientUnits="userSpaceOnUse">
                   <stop stopColor="#FFFFFF" />
-                  <stop offset="1" stopColor="#A5B4FC" />
-                </linearGradient>
-                <linearGradient id="paint1_linear" x1="16" y1="28" x2="29" y2="6" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#818CF8" />
-                  <stop offset="1" stopColor="#C7D2FE" stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="paint2_linear" x1="16" y1="6" x2="16" y2="28" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#38BDF8" stopOpacity="0.8"/>
-                  <stop offset="1" stopColor="#818CF8" stopOpacity="0"/>
+                  <stop offset="1" stopColor="#E0E7FF" />
                 </linearGradient>
               </defs>
             </svg>
