@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useGlobalState } from '../context/GlobalStateContext';
 import { useLedger } from '../hooks/useLedger';
@@ -5,9 +6,14 @@ import { LedgerPanel } from '../components/LedgerPanel';
 
 export function CircleDashboard() { 
   const { id } = useParams();
-  const { wallet } = useGlobalState();
+  const { wallet, setActiveCircleId } = useGlobalState();
   const ledgerState = useLedger();
   const isConnected = wallet.status === 'connected';
+
+  useEffect(() => {
+    if (id) setActiveCircleId(id);
+    return () => setActiveCircleId(null);
+  }, [id, setActiveCircleId]);
 
   // For the UI mockup, we'll assume the connected user is a member, but we don't know their state natively without a local DB.
   // We'll mock the private state view for the "Your Status" panel.
