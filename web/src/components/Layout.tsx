@@ -2,18 +2,8 @@ import { Link, Outlet } from 'react-router-dom';
 import { useGlobalState } from '../context/GlobalStateContext';
 
 export function Layout() {
-  const { walletStatus, setWalletStatus, connectedNetwork, activeCircleId } = useGlobalState();
-  const isConnected = walletStatus === 'connected';
-
-  const toggleWallet = () => {
-    if (isConnected) {
-      setWalletStatus('disconnected');
-    } else {
-      setWalletStatus('connecting');
-      // Simulate connection delay for UI testing
-      setTimeout(() => setWalletStatus('connected'), 1000);
-    }
-  };
+  const { wallet, connectedNetwork, activeCircleId } = useGlobalState();
+  const isConnected = wallet.status === 'connected';
 
   return (
     <div className="app">
@@ -30,6 +20,7 @@ export function Layout() {
         {/* ── Navigation Links ── */}
         <nav style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <Link to="/circles">Circles</Link>
+          <Link to="/wallet">Wallet</Link>
           <Link to="/privacy-lab">Privacy Lab</Link>
           <Link to="/about">About</Link>
           {activeCircleId && (
@@ -46,10 +37,10 @@ export function Layout() {
 
           <button
             className={isConnected ? 'danger small' : 'primary small'}
-            onClick={toggleWallet}
-            disabled={walletStatus === 'connecting'}
+            onClick={isConnected ? wallet.disconnect : wallet.connect}
+            disabled={wallet.status === 'connecting'}
           >
-            {walletStatus === 'connecting'
+            {wallet.status === 'connecting'
               ? 'Connecting…'
               : isConnected
                 ? 'Disconnect'
