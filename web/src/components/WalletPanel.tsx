@@ -74,7 +74,17 @@ export function WalletPanel({ wallet }: { wallet: UseWallet }) {
       )}
       {error && (
         <div className="notice warn" style={{ marginTop: 14 }}>
-          {error}
+          {error.includes('lace.io') ? (
+            <>
+              Lace wallet not detected — install it from{' '}
+              <a href="https://www.lace.io/" target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>
+                lace.io
+              </a>
+              . Ensure it is enabled and set to the Preprod network.
+            </>
+          ) : (
+            error
+          )}
         </div>
       )}
       {hint && status !== 'connected' && (
