@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGlobalState } from '../context/GlobalStateContext';
 import { useLedger } from '../hooks/useLedger';
 import { usePayout } from '../hooks/usePayout';
+import { isDemoCircle, DEMO_CIRCLE } from '../config/demo';
 
 const PROOF_SERVER_CMD =
   'docker run --platform linux/amd64 -p 6300:6300 midnightntwrk/proof-server:2.0.8';
@@ -13,24 +14,42 @@ export function PayoutPage() {
   const { wallet } = useGlobalState();
   const call = usePayout();
   const ledgerState = useLedger();
+  const isDemo = isDemoCircle(id);
 
   const connected = wallet.status === 'connected' && wallet.connection;
   const { phase, proofServer, result, error, hasContract } = call;
-  const busy = phase === 'checking' || phase === 'proving';
 
-  // Mocked member index (same as Dashboard)
+  // Demo simulation state
+  const [demoPhase, setDemoPhase] = useState<'idle' | 'proving' | 'done'>('idle');
+  const [demoResult, setDemoResult] = useState<{ txId: string } | null>(null);
+
+  const busy = isDemo ? demoPhase === 'proving' : (phase === 'checking' || phase === 'proving');
+
+  // Use demo or live data
   const mockedMemberIndex = 2;
-  const currentRecipientIndex = ledgerState.ledger ? Number(ledgerState.ledger.currentRecipientIndex) : 0;
+  const currentRecipientIndex = isDemo
+    ? Number(DEMO_CIRCLE.currentRecipientIndex)
+    : ledgerState.ledger ? Number(ledgerState.ledger.currentRecipientIndex) : 0;
   
   const isMyTurn = connected && currentRecipientIndex === mockedMemberIndex;
-  const poolSolvent = ledgerState.ledger ? ledgerState.ledger.poolSolvent : false;
-  const poolTotal = ledgerState.ledger ? ledgerState.ledger.poolTotal.toString() : '0';
+  const poolSolvent = isDemo ? DEMO_CIRCLE.poolSolvent : (ledgerState.ledger ? ledgerState.ledger.poolSolvent : false);
+  const poolTotal = isDemo ? DEMO_CIRCLE.poolTotal.toString() : (ledgerState.ledger ? ledgerState.ledger.poolTotal.toString() : '0');
 
   const canClaim = isMyTurn && poolSolvent;
   const canSubmit = connected && !busy && canClaim;
 
   const onSubmit = async () => {
     if (!connected) return;
+    if (isDemo) {
+      setDemoPhase('proving');
+      setDemoResult(null);
+      await new Promise((r) => setTimeout(r, 2500));
+      setDemoResult({
+        txId: '0x' + Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+      });
+      setDemoPhase('done');
+      return;
+    }
     await call.claimPayout(wallet.connection!, id as string);
     if (ledgerState.hasAddress) void ledgerState.refresh();
   };
@@ -42,8 +61,13 @@ export function PayoutPage() {
           <button className="small ghost" onClick={() => navigate(`/circles/${id}`)} style={{ marginBottom: '12px' }}>
             &larr; Back to Dashboard
           </button>
-          <h1>💸 Claim Payout</h1>
-          <p style={{ opacity: 0.8, fontFamily: 'monospace' }}>Contract: {id}</p>
+          <h1>Claim Payout</h1>
+          <p style={{ opacity: 0.8, fontFamily: 'monospace', fontSize: '0.85rem' }}>{id}</p>
+          {isDemo && (
+            <span className="badge warn" style={{ marginTop: '4px' }}>
+              <span className="dot" /> Demo Mode
+            </span>
+          )}
         </div>
       </div>
 
@@ -76,28 +100,54 @@ export function PayoutPage() {
               <div className="small muted">Total claimable pool balance</div>
             </div>
 
-            <ProofServerRow status={proofServer} onRecheck={call.recheckProofServer} />
+            {/* Proof Engine Status */}
+            {isDemo ? (
+              <div className="notice" style={{ marginTop: 24, borderColor: 'rgba(52, 211, 153, 0.3)', background: 'rgba(52, 211, 153, 0.06)' }}>
+                <div className="row spread">
+                  <span className="badge ok">
+                    <span className="dot" />
+                    Demo Mode — ZK Proof Simulation Active
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <ProofServerRow status={proofServer} onRecheck={call.recheckProofServer} />
+            )}
 
             <div className="row spread" style={{ marginTop: 24 }}>
               <div>
                 {!connected && <span className="small muted">Connect your Lace wallet to participate.</span>}
-                {connected && !hasContract && (
+                {connected && !hasContract && !isDemo && (
                   <span className="small muted ok">Client ZK Proof Simulation Active</span>
                 )}
               </div>
               <button className="primary" onClick={onSubmit} disabled={!canSubmit}>
-                {phase === 'checking'
-                  ? 'Verifying Engine…'
-                  : phase === 'proving'
-                    ? 'Generating ZK Proof…'
-                    : 'Claim Entire Pool'}
+                {isDemo
+                  ? (demoPhase === 'proving' ? 'Generating ZK Proof…' : 'Claim Entire Pool')
+                  : phase === 'checking'
+                    ? 'Verifying Engine…'
+                    : phase === 'proving'
+                      ? 'Generating ZK Proof…'
+                      : 'Claim Entire Pool'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Result / feedback */}
-        {phase === 'done' && result && (
+        {/* Demo Result */}
+        {isDemo && demoPhase === 'done' && demoResult && (
+          <div className="notice" style={{ marginTop: 24, borderColor: '#1f5136', background: 'rgba(31,81,54,0.15)' }}>
+            <div>
+              ✅ <strong>Payout Claimed!</strong> You have successfully rotated the circle and claimed the pool.
+            </div>
+            <div className="small muted" style={{ marginTop: 4 }}>
+              Transaction Hash: <span className="mono">{demoResult.txId}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Live Result */}
+        {!isDemo && phase === 'done' && result && (
           <div className="notice" style={{ marginTop: 24, borderColor: '#1f5136', background: 'rgba(31,81,54,0.15)' }}>
             <div>
               ✅ <strong>Payout Claimed!</strong> You have successfully rotated the circle and claimed the pool.
@@ -107,7 +157,7 @@ export function PayoutPage() {
             </div>
           </div>
         )}
-        {phase === 'error' && error && (
+        {!isDemo && phase === 'error' && error && (
           <div className="notice err" style={{ marginTop: 24 }}>
             {error}
           </div>

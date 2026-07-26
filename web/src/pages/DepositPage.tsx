@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGlobalState } from '../context/GlobalStateContext';
 import { useContribute } from '../hooks/useContribute';
 import { useLedger } from '../hooks/useLedger';
+import { isDemoCircle, DEMO_CIRCLE } from '../config/demo';
 
 const PROOF_SERVER_CMD =
   'docker run --platform linux/amd64 -p 6300:6300 midnightntwrk/proof-server:2.0.8';
@@ -13,16 +14,34 @@ export function DepositPage() {
   const { wallet } = useGlobalState();
   const call = useContribute();
   const ledger = useLedger();
+  const isDemo = isDemoCircle(id);
 
   const [amount, setAmount] = useState('100');
   const connected = wallet.status === 'connected' && wallet.connection;
   const { phase, proofServer, result, error, hasContract } = call;
 
-  const busy = phase === 'checking' || phase === 'proving';
+  // Demo simulation state
+  const [demoPhase, setDemoPhase] = useState<'idle' | 'proving' | 'done'>('idle');
+  const [demoResult, setDemoResult] = useState<{ shareMet: boolean; txId: string } | null>(null);
+
+  const busy = isDemo ? demoPhase === 'proving' : (phase === 'checking' || phase === 'proving');
   const canSubmit = !!connected && !busy && amount.trim() !== '';
 
   const onSubmit = async () => {
     if (!connected) return;
+    if (isDemo) {
+      // Simulate ZK proof generation
+      setDemoPhase('proving');
+      setDemoResult(null);
+      await new Promise((r) => setTimeout(r, 2200));
+      const parsed = BigInt(amount.trim() || '0');
+      setDemoResult({
+        shareMet: parsed >= DEMO_CIRCLE.requiredShare,
+        txId: '0x' + Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+      });
+      setDemoPhase('done');
+      return;
+    }
     let parsed: bigint;
     try {
       parsed = BigInt(amount.trim());
@@ -51,7 +70,18 @@ export function DepositPage() {
         </p>
 
         {/* Network Proof Engine Status */}
-        <ProofServerRow status={proofServer} onRecheck={call.recheckProofServer} />
+        {isDemo ? (
+          <div className="notice" style={{ marginTop: 12, borderColor: 'rgba(52, 211, 153, 0.3)', background: 'rgba(52, 211, 153, 0.06)' }}>
+            <div className="row spread">
+              <span className="badge ok">
+                <span className="dot" />
+                Demo Mode — ZK Proof Simulation Active
+              </span>
+            </div>
+          </div>
+        ) : (
+          <ProofServerRow status={proofServer} onRecheck={call.recheckProofServer} />
+        )}
 
         {/* Inline Explainer */}
         <div style={{ display: 'flex', gap: '16px', marginTop: '24px', padding: '16px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -92,16 +122,29 @@ export function DepositPage() {
             )}
           </div>
           <button className="primary" onClick={onSubmit} disabled={!canSubmit}>
-            {phase === 'checking'
-              ? 'Verifying Engine…'
-              : phase === 'proving'
-                ? 'Generating ZK Proof…'
-                : 'Deposit & Prove Share'}
+            {isDemo
+              ? (demoPhase === 'proving' ? 'Generating ZK Proof…' : 'Deposit & Prove Share')
+              : phase === 'checking'
+                ? 'Verifying Engine…'
+                : phase === 'proving'
+                  ? 'Generating ZK Proof…'
+                  : 'Deposit & Prove Share'}
           </button>
         </div>
 
         {/* Result / feedback */}
-        {phase === 'done' && result && (
+        {isDemo && demoPhase === 'done' && demoResult && (
+          <div className="notice" style={{ marginTop: 24, borderColor: '#1f5136', background: 'rgba(31,81,54,0.15)' }}>
+            <div>
+              ✅ <strong>Deposit Verified!</strong> Proof accepted by network. Disclosed result:{' '}
+              <code>shareMet = {String(demoResult.shareMet)}</code>.
+            </div>
+            <div className="small muted" style={{ marginTop: 4 }}>
+              Transaction Hash: <span className="mono">{demoResult.txId}</span>
+            </div>
+          </div>
+        )}
+        {!isDemo && phase === 'done' && result && (
           <div className="notice" style={{ marginTop: 24, borderColor: '#1f5136', background: 'rgba(31,81,54,0.15)' }}>
             <div>
               ✅ <strong>Deposit Verified!</strong> Proof accepted by network. Disclosed result:{' '}
