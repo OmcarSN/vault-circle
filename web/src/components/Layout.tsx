@@ -11,9 +11,24 @@ export function Layout() {
       <header className="top-nav">
         <Link to="/" className="brand" style={{ textDecoration: 'none' }}>
           <div className="logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4L12 20L20 4H15.5L12 11.5L8.5 4H4Z" fill="white" />
-              <path d="M12 20L15.5 11.5L20 4L12 20Z" fill="rgba(255, 255, 255, 0.4)" />
+            <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 6L16 28L29 6H21.5L16 16.5L10.5 6H3Z" fill="url(#paint0_linear)" />
+              <path d="M16 28L21.5 16.5L29 6L16 28Z" fill="url(#paint1_linear)" style={{ mixBlendMode: 'overlay' }} />
+              <path d="M16 28L10.5 16.5L16 6L21.5 16.5L16 28Z" fill="url(#paint2_linear)" opacity="0.6" />
+              <defs>
+                <linearGradient id="paint0_linear" x1="3" y1="6" x2="29" y2="28" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#FFFFFF" />
+                  <stop offset="1" stopColor="#A5B4FC" />
+                </linearGradient>
+                <linearGradient id="paint1_linear" x1="16" y1="28" x2="29" y2="6" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#818CF8" />
+                  <stop offset="1" stopColor="#C7D2FE" stopOpacity="0" />
+                </linearGradient>
+                <linearGradient id="paint2_linear" x1="16" y1="6" x2="16" y2="28" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#38BDF8" stopOpacity="0.8"/>
+                  <stop offset="1" stopColor="#818CF8" stopOpacity="0"/>
+                </linearGradient>
+              </defs>
             </svg>
           </div>
           <div>
