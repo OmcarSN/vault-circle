@@ -203,31 +203,32 @@ async function extractWalletState(api: any): Promise<WalletState> {
   let raw: any = null;
 
   try {
+    let stateResult: any;
     if (typeof api.state === 'function') {
-      raw = await api.state();
+      stateResult = api.state();
     } else if (typeof api.getState === 'function') {
-      raw = await api.getState();
-    } else if (api.state && typeof api.state.subscribe === 'function') {
-      raw = await new Promise((resolve, reject) => {
-        const sub = api.state.subscribe({
-          next: (v: any) => { sub.unsubscribe(); resolve(v); },
-          error: (err: any) => reject(err),
-        });
-      });
-    } else if (api.state$ && typeof api.state$.subscribe === 'function') {
-      raw = await new Promise((resolve, reject) => {
-        const sub = api.state$.subscribe({
-          next: (v: any) => { sub.unsubscribe(); resolve(v); },
-          error: (err: any) => reject(err),
-        });
-      });
-    } else if (api.state) {
-      raw = await Promise.resolve(api.state);
+      stateResult = api.getState();
     } else {
-      raw = api;
+      stateResult = api.state || api.state$ || api;
+    }
+
+    // Is it a Promise?
+    if (stateResult && typeof stateResult.then === 'function') {
+      raw = await stateResult;
+    } 
+    // Is it an Observable?
+    else if (stateResult && typeof stateResult.subscribe === 'function') {
+      raw = await new Promise((resolve, reject) => {
+        const sub = stateResult.subscribe({
+          next: (v: any) => { sub.unsubscribe(); resolve(v); },
+          error: (err: any) => reject(err),
+        });
+      });
+    } else {
+      raw = stateResult;
     }
   } catch (err) {
-    log('error invoking api.state(), fallback to api object', err);
+    log('error extracting wallet state, fallback to api object', err);
     raw = api;
   }
 
@@ -240,7 +241,7 @@ async function extractWalletState(api: any): Promise<WalletState> {
         raw?.bech32Address ||
         raw?.unshieldedAddress ||
         raw?.publicKeys?.coinPublicKey ||
-        'connected-wallet';
+        '';
 
   const coinPublicKey =
     raw?.coinPublicKey ||

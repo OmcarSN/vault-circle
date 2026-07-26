@@ -78,19 +78,6 @@ export function About() {
         </div>
       </section>
 
-      {/* ── Project Links ── */}
-      <section className="panel">
-        <h2>Project Links</h2>
-        <div style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
-          <a href="https://github.com/placeholder/vault-circle" target="_blank" rel="noreferrer" className="button ghost" style={{ flex: 1, textAlign: 'center', border: '1px solid var(--border)' }}>
-            <span style={{ fontSize: '1.2rem', marginRight: '8px' }}>📂</span> GitHub Repository
-          </a>
-          <a href="https://youtube.com/placeholder" target="_blank" rel="noreferrer" className="button ghost" style={{ flex: 1, textAlign: 'center', border: '1px solid var(--border)' }}>
-            <span style={{ fontSize: '1.2rem', marginRight: '8px' }}>🎥</span> Demo Video
-          </a>
-        </div>
-      </section>
-
     </div>
   );
 }

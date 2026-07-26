@@ -107,21 +107,31 @@ export function WalletPanel({ wallet }: { wallet: UseWallet }) {
 
             <div className="k">Your Address</div>
             <div className="row" style={{ gap: 8 }}>
-              <span className="addr mono" title={connection.state.address}>
-                {truncateMiddle(connection.state.address, 14, 10)}
-              </span>
-              <button
-                className="small ghost"
-                onClick={() => copy('address', connection.state.address)}
-              >
-                {copied === 'address' ? 'Copied ✓' : 'Copy'}
-              </button>
+              {connection.state.address ? (
+                <>
+                  <span className="addr mono" title={connection.state.address}>
+                    {truncateMiddle(connection.state.address, 14, 10)}
+                  </span>
+                  <button
+                    className="small ghost"
+                    onClick={() => copy('address', connection.state.address)}
+                  >
+                    {copied === 'address' ? 'Copied ✓' : 'Copy'}
+                  </button>
+                </>
+              ) : (
+                <span className="mono muted">Not exposed by Wallet API</span>
+              )}
             </div>
 
             <div className="k">Coin Public Key</div>
-            <div className="addr mono" title={connection.state.coinPublicKey}>
-              {truncateMiddle(connection.state.coinPublicKey, 14, 10)}
-            </div>
+            {connection.state.coinPublicKey ? (
+              <div className="addr mono" title={connection.state.coinPublicKey}>
+                {truncateMiddle(connection.state.coinPublicKey, 14, 10)}
+              </div>
+            ) : (
+              <div className="mono muted">Not exposed by Wallet API</div>
+            )}
 
             {balanceEntries.length > 0 && (
               <>

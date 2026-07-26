@@ -54,8 +54,15 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <footer style={{ marginTop: 'auto', textAlign: 'center', padding: '24px' }}>
-        <span className="grad">Vault Circle</span> · Private Decentralized Finance on Midnight · Powered by Zero-Knowledge Proofs
+      <footer style={{ marginTop: 'auto', textAlign: 'center', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div>
+          <span className="grad">Vault Circle</span> · Private Decentralized Finance on Midnight · Powered by Zero-Knowledge Proofs
+        </div>
+        <div>
+          <a href="https://github.com/placeholder/vault-circle" target="_blank" rel="noreferrer" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontSize: '0.9rem' }}>
+            📂 GitHub Repository
+          </a>
+        </div>
       </footer>
     </div>
   );
