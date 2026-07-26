@@ -1,9 +1,54 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useGlobalState } from '../context/GlobalStateContext';
+
+const NAV_ITEMS = [
+  {
+    to: '/',
+    label: 'Home',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    ),
+    exact: true,
+  },
+  {
+    to: '/circles',
+    label: 'Circles',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+    ),
+  },
+  {
+    to: '/wallet',
+    label: 'Wallet',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 10H2M6 16h4"/></svg>
+    ),
+  },
+  {
+    to: '/privacy-lab',
+    label: 'Privacy Lab',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    ),
+  },
+  {
+    to: '/about',
+    label: 'About',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    ),
+  },
+];
 
 export function Layout() {
   const { wallet, connectedNetwork, activeCircleId } = useGlobalState();
   const isConnected = wallet.status === 'connected';
+  const location = useLocation();
+
+  const isActive = (to: string, exact?: boolean) => {
+    if (exact) return location.pathname === to;
+    return location.pathname === to || location.pathname.startsWith(to + '/');
+  };
 
   return (
     <div className="app">
@@ -30,28 +75,21 @@ export function Layout() {
 
         {/* ── Navigation Links ── */}
         <nav className="nav-links">
-          <Link to="/" className="nav-link">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            Home
-          </Link>
-          <Link to="/circles" className="nav-link">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
-            Circles
-          </Link>
-          <Link to="/wallet" className="nav-link">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 10H2M6 16h4"/></svg>
-            Wallet
-          </Link>
-          <Link to="/privacy-lab" className="nav-link">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Privacy Lab
-          </Link>
-          <Link to="/about" className="nav-link">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            About
-          </Link>
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`nav-link ${isActive(item.to, item.exact) ? 'nav-link--current' : ''}`}
+            >
+              {item.icon}
+              {item.label}
+            </Link>
+          ))}
           {activeCircleId && (
-            <Link to={`/circles/${activeCircleId}`} className="nav-link nav-link--active">
+            <Link
+              to={`/circles/${activeCircleId}`}
+              className={`nav-link nav-link--active ${isActive(`/circles/${activeCircleId}`) ? 'nav-link--current' : ''}`}
+            >
               <span className="dot" style={{ width: 6, height: 6 }} />
               Active Circle
             </Link>
