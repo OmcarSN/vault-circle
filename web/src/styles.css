@@ -130,6 +130,43 @@ body::before {
   gap: 16px;
 }
 
+/* ── Nav Links ── */
+.nav-links {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s ease, background 0.2s ease, transform 0.12s ease;
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  color: #fff;
+  background: rgba(139, 108, 255, 0.12);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.nav-link--active {
+  color: var(--ok);
+  background: rgba(52, 211, 153, 0.1);
+}
+.nav-link--active:hover {
+  color: var(--ok);
+  background: rgba(52, 211, 153, 0.18);
+}
+
 /* ── Dashboard Grid ── */
 .stats-grid {
   display: grid;
