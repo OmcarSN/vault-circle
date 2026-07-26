@@ -21,28 +21,59 @@ Vault Circle is a smart contract that manages a privacy-preserving chit fund:
 
 ## Privacy Model
 
-This contract is built for **financial privacy** on a public blockchain:
+Vault Circle leverages zero-knowledge cryptography to fix the fundamental flaw in traditional on-chain finance: **total transparency.** We ensure financial privacy for individuals while guaranteeing systemic trust for the group.
 
-### What is PUBLIC (on-chain ledger state)
+### 🔒 What stays strictly Private (Encrypted Client-Side)
 
-| Field             | Type      | Description                                        |
-|-------------------|-----------|----------------------------------------------------|
-| `requiredShare`   | Uint<32>  | The fixed amount each member must contribute       |
-| `contributionMet` | Boolean   | Whether the contribution threshold was met (just true/false — no amount) |
-| `cycleCount`      | Uint<32>  | Number of completed cycles                         |
-| `poolSolvent`     | Boolean   | Whether the fund is solvent                        |
+| Field                 | Type      | Description                                   |
+|-----------------------|-----------|-----------------------------------------------|
+| `memberContribution`  | Witness   | The member's actual contribution amount       |
+| `memberIndex`         | Witness   | Caller's position in the rotation (Identity Mask) |
 
-### What is PRIVATE (witness — never leaves the member's machine)
+- **Exact Contribution Amounts:** Never recorded on the ledger. Your exact capital limits and deposit sizes are encrypted on your local device.
+- **Individual Payout History:** Other members cannot inspect the chain to see exactly when you claimed a payout or how much your specific claim was worth.
+- **Member Identity Mapping:** The rotation sequence uses masked indexes, decoupling your Lace wallet address from your turn in the circle.
 
-| Witness                 | Type      | Description                                   |
-|-------------------------|-----------|-----------------------------------------------|
-| `memberContribution()`  | Uint<32>  | The member's actual contribution amount       |
+### 👁 What is Publicly Provable (On-Chain Ledger State)
 
-### What the user PROVES without revealing
+| Field                 | Type      | Description                                        |
+|-----------------------|-----------|----------------------------------------------------|
+| `requiredShare`       | Uint<32>  | The fixed amount each member must contribute       |
+| `memberCount`         | Uint<32>  | Total members in the circle                        |
+| `currentRecipientIndex`| Uint<32> | Whose turn it is in the rotation (index)           |
+| `membersContributedThisCycle`| Uint<32> | Count of members who've paid this cycle      |
+| `poolTotal`           | Uint<32>  | Running pool total                                 |
+| `cycleCount`          | Uint<32>  | Number of completed cycles                         |
+| `poolSolvent`         | Boolean   | Whether the fund is solvent                        |
 
-- That their contribution **meets or exceeds** the required share — without revealing the exact amount.
-- The circuit asserts `amount >= requiredShare` using the private witness, then discloses only `contributionMet = true`.
-- `disclose()` is used **only** for aggregate/boolean results — never for individual amounts.
+- **Pool Solvency:** The contract cryptographically guarantees that the collective pool has met its funding target before allowing payouts.
+- **Fair Rotation:** The smart contract enforces strict turn-based claiming, ensuring no member can skip the line or claim twice.
+- **Threshold Met:** Zero-knowledge proofs publicly verify that each member met the minimum required share, without revealing the actual amount deposited.
+
+## System Architecture
+
+```
+[ Client Browser ]                             [ Midnight Network ]
+       │                                              │
+ ┌─────▼──────┐     Local Witness         ┌───────────▼───────────┐
+ │ Lace Wallet│ ───────────────────────►  │ Public Ledger State   │
+ └─────┬──────┘  (Private Deposit Amt)    │ - poolSolvent         │
+       │                                  │ - poolTotal           │
+       │                                  │ - memberCount         │
+       │                                  │ - cycleCount          │
+ ┌─────▼──────┐                           │ - recipientIndex      │
+ │ UI React   │                           └───────────┬───────────┘
+ │ Dashboard  │ ◄─────────────────────────────────────┤
+ │ Deposit UI │       Read Public State (indexer)     │
+ └─────┬──────┘                                       │
+       │                                              │
+ ┌─────▼──────┐     submitTx(proof)       ┌───────────▼───────────┐
+ │ Proof Svr  │ ───────────────────────►  │ Compact Smart Contract│
+ │ (Localhost)│                           │ - contribute()        │
+ └────────────┘                           │ - claimPayout()       │
+    Generates                             │ - checkSolvency()     │
+    ZK Proof                              └───────────────────────┘
+```
 
 ## Tech Stack
 
