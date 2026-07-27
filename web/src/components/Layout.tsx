@@ -115,6 +115,21 @@ export function Layout() {
         </div>
       </header>
 
+      {wallet.error && (
+        <div style={{ padding: '0 24px', marginTop: '16px' }}>
+          <div className="notice err" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <strong>Connection Error:</strong> {wallet.error}
+            </div>
+            {wallet.error.includes('install it from lace.io') && (
+              <a href="https://www.lace.io" target="_blank" rel="noreferrer" className="badge ok" style={{ textDecoration: 'none' }}>
+                Get Lace Wallet
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Main Work Area ── */}
       <main className="main-content" style={{ padding: '24px' }}>
         <Outlet />
