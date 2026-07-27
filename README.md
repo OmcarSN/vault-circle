@@ -1,194 +1,108 @@
 # Vault Circle
 
-> A privacy-preserving digital chit fund on Midnight.
+> A private, digital savings club built on the Midnight blockchain.
 
-A **rotating savings circle** (chit fund) on the Midnight blockchain. Members contribute a fixed amount each cycle into a shared pool; one member receives the payout on rotation. Contribution amounts and individual payout history stay **private** (private witnesses), while the contract publicly proves the fund stays solvent and contributions are made on schedule (public ledger state).
+## What is Vault Circle?
 
-## Contract Address
+Vault Circle is a **Rotating Savings and Credit Association (ROSCA)**—also known as a chit fund, susu, or tanda. It's one of the oldest ways for communities to save and borrow money together. 
 
-| Network  | Address                                                   |
-|----------|-----------------------------------------------------------|
-| Preview  | [PASTE ADDRESS AFTER DEPLOY]                              |
-| Preprod  | [PASTE ADDRESS AFTER DEPLOY]                              |
+Here's how it works:
+1. A group of people agree to contribute a set amount of money every month into a shared pool.
+2. Every month, one person from the group takes the entire pool of money.
+3. This repeats until everyone in the group has received a payout.
 
-## What This Does
+Vault Circle takes this traditional concept and brings it to the blockchain so anyone in the world can participate securely.
 
-Vault Circle is a smart contract that manages a privacy-preserving chit fund:
+## The Problem: Blockchain is Too Public
 
-- **`contribute()`** — Proves a member's contribution meets the required share without revealing their actual payment amount. The ledger only records a boolean `true` for `contributionMet`.
-- **`closeCycle()`** — Closes the current cycle after a successful payout. Resets `contributionMet` and increments the cycle counter.
-- **`markInsolvent()`** — Emergency circuit to mark the fund as insolvent if payouts exceed the pool.
+If you try to build a savings club on a normal blockchain (like Ethereum or Bitcoin), there is a massive privacy problem: **total transparency.**
 
-## Privacy Model
+Because the ledger is public, anyone in the world can see:
+- Exactly how much money is in your wallet.
+- Exactly how much you deposited into the club.
+- Exactly when you claimed your payout and how much you received.
 
-Vault Circle leverages zero-knowledge cryptography to fix the fundamental flaw in traditional on-chain finance: **total transparency.** We ensure financial privacy for individuals while guaranteeing systemic trust for the group.
+Most people don't want their friends, family, or strangers knowing their exact financial balances or cash flows. But without a public ledger, how can the group trust that everyone is paying their fair share?
 
-### 🔒 What stays strictly Private (Encrypted Client-Side)
+## The Solution: Zero-Knowledge Privacy on Midnight
 
-| Field                 | Type      | Description                                   |
-|-----------------------|-----------|-----------------------------------------------|
-| `memberContribution`  | Witness   | The member's actual contribution amount       |
-| `memberIndex`         | Witness   | Caller's position in the rotation (Identity Mask) |
+Vault Circle solves this problem by using **Zero-Knowledge (ZK) proofs** on the Midnight Network. It splits the app's data into two categories:
 
-- **Exact Contribution Amounts:** Never recorded on the ledger. Your exact capital limits and deposit sizes are encrypted on your local device.
-- **Individual Payout History:** Other members cannot inspect the chain to see exactly when you claimed a payout or how much your specific claim was worth.
-- **Member Identity Mapping:** The rotation sequence uses masked indexes, decoupling your Lace wallet address from your turn in the circle.
+### 🔒 What Stays Strictly Private (Hidden from everyone)
+Your personal financial data never leaves your device. Only you know:
+- **Your exact deposit amount:** You prove you met the minimum requirement without revealing the actual number.
+- **Your payout history:** No one can see exactly when you got paid or how much you received.
+- **Your identity in the circle:** Your wallet address is hidden behind a masked ID, so people can't easily track your turns.
 
-### 👁 What is Publicly Provable (On-Chain Ledger State)
+### 👁 What is Publicly Provable (Visible to the group)
+The smart contract publicly proves the rules are being followed so the group can trust the system:
+- **Pool Solvency:** The contract proves there is enough money in the pot before allowing a payout.
+- **Fair Rotation:** The contract enforces strict turn-based claiming. No one can skip the line or claim twice.
+- **Threshold Met:** The blockchain only records a simple "Yes" or "No" checkmark to confirm you paid your required share.
 
-| Field                 | Type      | Description                                        |
-|-----------------------|-----------|----------------------------------------------------|
-| `requiredShare`       | Uint<32>  | The fixed amount each member must contribute       |
-| `memberCount`         | Uint<32>  | Total members in the circle                        |
-| `currentRecipientIndex`| Uint<32> | Whose turn it is in the rotation (index)           |
-| `membersContributedThisCycle`| Uint<32> | Count of members who've paid this cycle      |
-| `poolTotal`           | Uint<32>  | Running pool total                                 |
-| `cycleCount`          | Uint<32>  | Number of completed cycles                         |
-| `poolSolvent`         | Boolean   | Whether the fund is solvent                        |
+---
 
-- **Pool Solvency:** The contract cryptographically guarantees that the collective pool has met its funding target before allowing payouts.
-- **Fair Rotation:** The smart contract enforces strict turn-based claiming, ensuring no member can skip the line or claim twice.
-- **Threshold Met:** Zero-knowledge proofs publicly verify that each member met the minimum required share, without revealing the actual amount deposited.
+## 🛠 For Developers
 
-## System Architecture
+Want to run the code, run the tests, or deploy your own contract? Here is the technical setup.
 
-```
-[ Client Browser ]                             [ Midnight Network ]
-       │                                              │
- ┌─────▼──────┐     Local Witness         ┌───────────▼───────────┐
- │ Lace Wallet│ ───────────────────────►  │ Public Ledger State   │
- └─────┬──────┘  (Private Deposit Amt)    │ - poolSolvent         │
-       │                                  │ - poolTotal           │
-       │                                  │ - memberCount         │
-       │                                  │ - cycleCount          │
- ┌─────▼──────┐                           │ - recipientIndex      │
- │ UI React   │                           └───────────┬───────────┘
- │ Dashboard  │ ◄─────────────────────────────────────┤
- │ Deposit UI │       Read Public State (indexer)     │
- └─────┬──────┘                                       │
-       │                                              │
- ┌─────▼──────┐     submitTx(proof)       ┌───────────▼───────────┐
- │ Proof Svr  │ ───────────────────────►  │ Compact Smart Contract│
- │ (Localhost)│                           │ - contribute()        │
- └────────────┘                           │ - claimPayout()       │
-    Generates                             │ - checkSolvency()     │
-    ZK Proof                              └───────────────────────┘
-```
-
-## Tech Stack
-
+### Tech Stack
 - **Smart Contract Language:** [Compact](https://docs.midnight.network/compact) v0.23
 - **Runtime:** `@midnight-ntwrk/compact-runtime` 0.16.0
 - **On-chain Runtime:** `@midnight-ntwrk/onchain-runtime-v3`
-- **Testing:** Vitest v3
+- **Frontend:** React + TypeScript (Vite)
 - **Zero-Knowledge:** ZKIR circuits (generated by `compact compile`)
 - **Network:** Midnight Preview / Preprod
 - **Proof Server:** `midnightntwrk/proof-server:7.0.0`
 
-## Prerequisites
-
+### Prerequisites
 - Node.js v22+
 - Docker
-- Compact compiler v0.5.1+ (`compact --version`)
+- Compact compiler v0.5.1+
 - A Midnight wallet (Lace or compatible) with testnet tNIGHT tokens
 
-### Install the Compact Compiler
-
+**Install the Compact Compiler (Mac/Linux):**
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/midnightntwrk/compact/releases/latest/download/compact-installer.sh | sh
 ```
+*Verify installation by running `compact --version`*
 
-Verify:
-
-```bash
-compact --version
-```
-
-## Setup
+### Setup & Run
 
 ```bash
-# Clone or navigate to the project
+# 1. Clone or navigate to the project
 cd vault-circle
 
-# Install dependencies
+# 2. Install dependencies
 npm install
 
-# Compile the Compact contract
+# 3. Compile the Compact smart contract
 compact compile contracts/counter.compact managed/
 
-# Start the proof server (separate terminal)
+# 4. Start the zero-knowledge proof server (in a separate terminal)
 docker run -p 6300:6300 midnightntwrk/proof-server:7.0.0
 ```
 
-## Run Tests
+### Run Tests
 
 ```bash
 npm test
 ```
+The test suite covers circuit logic (threshold checks), state transitions (cycle lifecycles), privacy guarantees, and emergency insolvent states.
 
-Expected output:
-
-```
- RUN  v3.2.7
- ✓ tests/counter.test.ts (13 tests) 459ms
-
- Test Files  1 passed (1)
-      Tests  13 passed (13)
-```
-
-### Test Coverage
-
-1. **Circuit Logic** (4 tests) — contribute accepts/rejects based on threshold
-2. **State Transitions** (4 tests) — cycle lifecycle, resets, multiple cycles
-3. **Privacy** (3 tests) — private amount never exposed on ledger
-4. **Emergency** (2 tests) — markInsolvent works once, rejects twice
-
-## Project Structure
-
-```
-vault-circle/
-├── contracts/
-│   └── counter.compact       ← Compact smart contract
-├── managed/                  ← Auto-generated by compact compile
-│   ├── contract/
-│   ├── compiler/
-│   ├── keys/                 ← Prover/verifier keys per circuit
-│   └── zkir/                 ← ZKIR circuits
-├── src/                      ← Frontend (added in Level 2)
-├── tests/
-│   └── counter.test.ts       ← 13 passing tests
-├── .github/
-│   └── workflows/            ← CI/CD (added in Level 3)
-├── README.md
-└── package.json
-```
-
-## Deploy
+### Deploy
 
 We have a custom deployment pipeline configured for Midnight Preprod and Preview networks.
 
-To deploy to Midnight Preprod:
-
 ```bash
+# Deploy to Midnight Preprod:
 npm run deploy:preprod
-```
 
-To deploy to Midnight Preview:
-
-```bash
+# Deploy to Midnight Preview:
 npm run deploy:preview
 ```
-
 *Note: The deployment script relies on a synced dust wallet. If the Midnight network's dust generation is currently stalled, the deployment will wait for sync.*
-
-## Initial Idea
-
-Vault Circle — a privacy-preserving digital chit fund / rotating savings circle. Members contribute a fixed amount each cycle into a shared pool; one member receives the payout on rotation. Contribution amounts and individual payout history stay private (private witness), while the contract publicly proves the fund stays solvent and contributions are made on schedule (public ledger state). `disclose()` is used only to reveal the aggregate pool total when a cycle closes — never individual amounts.
-
-## Screenshots
-
-*[Screenshots to be added after frontend is built in Level 2]*
 
 ---
 
-Built for the [Midnight Builder Challenge](https://risein.com) — Level 1.
+Built for the [Midnight Builder Challenge](https://risein.com).
