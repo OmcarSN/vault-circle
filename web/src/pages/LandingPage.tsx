@@ -57,7 +57,7 @@ export function LandingPage() {
         <h2 style={{ textAlign: 'center', marginBottom: '32px', fontSize: '1.5rem', fontWeight: 700 }}>
           How It Works
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
           {[
             {
               step: '01',
