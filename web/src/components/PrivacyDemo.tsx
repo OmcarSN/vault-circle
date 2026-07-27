@@ -135,8 +135,17 @@ export function PrivacyDemo() {
         </div>
       </section>
 
-      {/* ── Arrow ── */}
-      <div className="arrow" style={{ margin: '8px 0' }}>⬇ Zero-Knowledge Proof Circuit ⬇</div>
+      {/* ── Circuit Divider ── */}
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '16px 0' }}>
+        <div style={{
+          padding: '4px 14px', background: 'rgba(139, 108, 255, 0.1)',
+          border: '1px solid var(--border-strong)', borderRadius: '20px',
+          fontSize: '11px', fontWeight: 600, textTransform: 'uppercase',
+          letterSpacing: '0.08em', color: 'var(--accent-blue)',
+        }}>
+          ZK Circuit Transformation
+        </div>
+      </div>
 
       {/* ── Step 3: What the Blockchain Sees ── */}
       <section className="panel" style={{ marginBottom: '20px' }}>
@@ -214,19 +223,18 @@ export function PrivacyDemo() {
       >
         {identical && bothMet ? (
           <>
-            <h2 style={{ color: 'var(--ok)', margin: '0 0 12px' }}>✅ Proof: Privacy Works!</h2>
+            <h2 style={{ color: 'var(--ok)', margin: '0 0 12px', fontSize: '1.25rem' }}>State Match: Identical Public Footprint</h2>
             <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.65 }}>
-              Alice deposited <code>{a.toString()} tNIGHT</code> and Bob deposited <code>{b.toString()} tNIGHT</code> —
-              wildly different amounts. But on the blockchain, both records are <strong style={{ color: '#fff' }}>identical</strong>:
-              just <code>shareMet = true</code>. An outside observer <strong style={{ color: '#fff' }}>cannot tell them apart</strong>.
+              Despite differing deposit inputs ({a.toString()} vs {b.toString()}), both records generate an identical boolean on-chain footprint 
+              (<code>shareMet = true</code>). Cryptographic observers <strong style={{ color: '#fff' }}>cannot differentiate</strong> the underlying transactions.
             </p>
           </>
         ) : (
           <>
-            <h2 style={{ color: 'var(--warn)', margin: '0 0 12px' }}>⚠ Proofs Don't Match Yet</h2>
+            <h2 style={{ color: 'var(--warn)', margin: '0 0 12px', fontSize: '1.25rem' }}>State Divergence: Threshold Not Met</h2>
             <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.65 }}>
-              One member's deposit is below the <code>{share.toString()} tNIGHT</code> required share, so their proof says
-              <code> shareMet = false</code>. Increase their deposit above the threshold to see identical privacy footprints.
+              One or more inputs fall below the required threshold of <code>{share.toString()} tNIGHT</code>, resulting in a rejected validation state
+              (<code>shareMet = false</code>). Adjust inputs to satisfy the minimum parameter and observe the footprint convergence.
             </p>
           </>
         )}
