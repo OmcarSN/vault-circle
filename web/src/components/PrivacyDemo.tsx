@@ -182,7 +182,21 @@ export function PrivacyDemo() {
                 </span>
               </div>
               <div className="k">Deposit Amount</div>
-              <div className="mono strike">Hidden / Encrypted</div>
+              <div>
+                <span style={{
+                  display: 'inline-block',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  border: '1px dashed rgba(255, 255, 255, 0.2)',
+                  borderRadius: '6px',
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  fontFamily: 'monospace',
+                  color: 'var(--muted)',
+                  letterSpacing: '0.1em',
+                }}>
+                  [ ENCRYPTED ]
+                </span>
+              </div>
             </div>
           </div>
 
@@ -206,7 +220,21 @@ export function PrivacyDemo() {
                 </span>
               </div>
               <div className="k">Deposit Amount</div>
-              <div className="mono strike">Hidden / Encrypted</div>
+              <div>
+                <span style={{
+                  display: 'inline-block',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  border: '1px dashed rgba(255, 255, 255, 0.2)',
+                  borderRadius: '6px',
+                  padding: '3px 8px',
+                  fontSize: '11px',
+                  fontFamily: 'monospace',
+                  color: 'var(--muted)',
+                  letterSpacing: '0.1em',
+                }}>
+                  [ ENCRYPTED ]
+                </span>
+              </div>
             </div>
           </div>
         </div>
