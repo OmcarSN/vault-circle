@@ -458,7 +458,7 @@ footer .grad { background: var(--grad); -webkit-background-clip: text; backgroun
 .stat-chip {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 .stat-chip-label {
   font-size: 11px;

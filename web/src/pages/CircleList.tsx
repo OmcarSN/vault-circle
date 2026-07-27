@@ -40,7 +40,7 @@ export function CircleList() {
                 <div className="small muted">Demo Circle · {DEMO_CIRCLE.id}</div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
               <div className="stat-chip">
                 <span className="stat-chip-label">Share Required</span>
                 <span className="stat-chip-value">{DEMO_CIRCLE.requiredShare.toString()} tNIGHT</span>
@@ -92,7 +92,7 @@ export function CircleList() {
                   <div className="small muted mono">{CONTRACT_ADDRESS.slice(0, 10)}...{CONTRACT_ADDRESS.slice(-8)}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
                 <div className="stat-chip">
                   <span className="stat-chip-label">Share Required</span>
                   <span className="stat-chip-value">{ledger.requiredShare.toString()} tNIGHT</span>
