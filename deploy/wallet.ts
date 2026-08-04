@@ -119,11 +119,11 @@ import { firstValueFrom } from 'rxjs';
  * Wait for dust wallet to fully sync by comparing appliedIndex to highestRelevantWalletIndex.
  * The chain has ~1.3M dust events; at ~600 events/s this takes ~37 minutes.
  */
-const waitForDustSynced = async (wallet: WalletFacade, maxMs = 180 * 60 * 1000): Promise<void> => {
+const waitForDustSynced = async (wallet: WalletFacade, maxMs = 60 * 60 * 1000): Promise<void> => {
   const start = Date.now();
 
   while (Date.now() - start < maxMs) {
-    await new Promise((r) => setTimeout(r, 10_000)); // check every 10s
+    await new Promise((r) => setTimeout(r, 5_000)); // check every 5s
     const ds = await firstValueFrom(wallet.dust.state);
     const p = ds?.progress ?? ds?.state?.progress;
     const applied = BigInt(p?.appliedIndex ?? 0);
@@ -137,7 +137,7 @@ const waitForDustSynced = async (wallet: WalletFacade, maxMs = 180 * 60 * 1000):
       console.log(`      dust: applied=${applied} (waiting for index…)`);
     }
   }
-  console.log('      dust: max wait (50 min) exceeded — proceeding anyway');
+  console.log('      dust: max wait (60 min) exceeded — proceeding anyway');
 };
 
 const waitForSync = async (wallet: WalletFacade): Promise<FacadeState> => {
@@ -177,63 +177,59 @@ const registerForDustGeneration = async (
   wallet: WalletFacade,
   ctx: WalletContext,
 ): Promise<void> => {
-  const MAX_ATTEMPTS = 5;
-  const RETRY_WAIT_MS = 2 * 60 * 1000; // 2 minutes between retries
+  const state = await firstValueFrom(wallet.state());
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const state = await firstValueFrom(wallet.state());
-
-    // Check if dust coins already exist (from a prior run's registration).
-    if (state.dust.availableCoins.length > 0) {
-      console.log('    ✓ Dust coins already available — skipping registration');
-      return;
-    }
-
-    // Get unregistered NIGHT UTXOs.
-    const nightUtxos = state.unshielded.availableCoins.filter(
-      (coin: any) => !coin.meta?.registeredForDustGeneration,
-    );
-
-    if (nightUtxos.length === 0) {
-      console.log('    ✓ All NIGHT UTXOs registered — waiting for dust coins…');
-      const found = await waitForDustCoins(wallet);
-      if (found) return;
-      // If coins still didn't appear, retry loop will re-check.
-      continue;
-    }
-
-    const nightVerifyingKey = ctx.unshieldedKeystore.getPublicKey();
-    const signFn = (data: Uint8Array) => ctx.unshieldedKeystore.signData(data);
-
-    console.log(`    [Attempt ${attempt}/${MAX_ATTEMPTS}] Registering ${nightUtxos.length} NIGHT UTXO(s) for DUST…`);
-
-    try {
-      const recipe = await wallet.registerNightUtxosForDustGeneration(
-        nightUtxos,
-        nightVerifyingKey,
-        signFn,
-      );
-
-      console.log('    Proving dust registration…');
-      const finalizedTx = await wallet.finalizeRecipe(recipe);
-
-      console.log('    Submitting dust registration…');
-      await wallet.submitTransaction(finalizedTx);
-      console.log('    ✓ Dust registration submitted — waiting for coins…');
-
-      const found = await waitForDustCoins(wallet);
-      if (found) return;
-    } catch (err: any) {
-      const msg = String(err?.message ?? err);
-      console.log(`    ⚠ Registration failed: ${msg.slice(0, 200)}`);
-      if (attempt < MAX_ATTEMPTS) {
-        console.log(`    ⏳ Waiting 2 min for more syncing before retry…`);
-        await new Promise((r) => setTimeout(r, RETRY_WAIT_MS));
-      }
-    }
+  // Check if dust coins already exist (from a prior run's registration).
+  if (state.dust.availableCoins.length > 0) {
+    console.log('    ✓ Dust coins already available — skipping registration');
+    return;
   }
 
-  console.log('    ⚠ All registration attempts exhausted — proceeding anyway');
+  // Get unregistered NIGHT UTXOs.
+  const nightUtxos = state.unshielded.availableCoins.filter(
+    (coin: any) => !coin.meta?.registeredForDustGeneration,
+  );
+
+  if (nightUtxos.length === 0) {
+    console.log('    ✓ All NIGHT UTXOs already registered — proceeding to deploy');
+    return;
+  }
+
+  const nightVerifyingKey = ctx.unshieldedKeystore.getPublicKey();
+  const signFn = (data: Uint8Array) => ctx.unshieldedKeystore.signData(data);
+
+  console.log(`    Registering ${nightUtxos.length} NIGHT UTXO(s) for DUST…`);
+
+  try {
+    const recipe = await wallet.registerNightUtxosForDustGeneration(
+      nightUtxos,
+      nightVerifyingKey,
+      signFn,
+    );
+
+    console.log('    Proving dust registration…');
+    const finalizedTx = await wallet.finalizeRecipe(recipe);
+
+    console.log('    Submitting dust registration…');
+    await wallet.submitTransaction(finalizedTx);
+    console.log('    ✓ Dust registration submitted');
+
+    // Brief wait for coins to appear (30s max)
+    console.log('    Waiting briefly for dust coins…');
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const s = await firstValueFrom(wallet.state());
+      if (s.dust.availableCoins.length > 0) {
+        console.log(`    ✓ DUST available (${s.dust.availableCoins.length} coin(s))`);
+        return;
+      }
+    }
+    console.log('    ⚠ Dust coins not yet visible — proceeding to deploy anyway');
+  } catch (err: any) {
+    const msg = String(err?.message ?? err);
+    console.log(`    ⚠ Registration failed: ${msg.slice(0, 200)}`);
+    console.log('    Proceeding to deploy anyway…');
+  }
 };
 
 /** Poll for dust coins (up to 3 min). Returns true if found. */

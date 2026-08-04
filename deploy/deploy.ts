@@ -36,6 +36,11 @@ type VaultCirclePrivateState = Record<string, never>;
 const contributionAmount = BigInt(process.env.VAULT_CIRCLE_CONTRIBUTION ?? '100');
 
 const witnesses = {
+  memberIndex(context: any): [VaultCirclePrivateState, bigint] {
+    // Default member index for deployment — not used by the constructor,
+    // but required by the Compact runtime to be present.
+    return [context.privateState, 0n];
+  },
   memberContribution(context: any): [VaultCirclePrivateState, bigint] {
     return [context.privateState, contributionAmount];
   },
@@ -85,18 +90,26 @@ async function main(): Promise<void> {
   );
 
   // 4. Deploy — constructor takes `reqShare`, so pass it via `args`.
-  console.log('\n  Deploying contract (generating proof — this can take a minute)…');
-  const deployed = await deployContract(providers, {
-    compiledContract: compiled,
-    privateStateId: PRIVATE_STATE_ID,
-    initialPrivateState: {} as VaultCirclePrivateState,
-    args: [requiredShare],
-  });
+  //    The dust wallet continues syncing in the background. If we get
+  //    "InsufficientFunds: could not balance dust", we retry after a wait
+  //    because dust coins may appear as the wallet catches up.
+  const MAX_DEPLOY_ATTEMPTS = 30;
+  const RETRY_WAIT_MS = 2 * 60 * 1000; // 2 minutes between retries
 
-  const address = deployed.deployTxData.public.contractAddress;
+  for (let attempt = 1; attempt <= MAX_DEPLOY_ATTEMPTS; attempt++) {
+    try {
+      console.log(`\n  [Attempt ${attempt}/${MAX_DEPLOY_ATTEMPTS}] Deploying contract (generating proof)…`);
+      const deployed = await deployContract(providers, {
+        compiledContract: compiled,
+        privateStateId: PRIVATE_STATE_ID,
+        initialPrivateState: {} as VaultCirclePrivateState,
+        args: [requiredShare],
+      });
 
-  const DIV = '══════════════════════════════════════════════════════════════';
-  console.log(`
+      const address = deployed.deployTxData.public.contractAddress;
+
+      const DIV = '══════════════════════════════════════════════════════════════';
+      console.log(`
 ${DIV}
   ✅ Contract deployed successfully!
 ${DIV}
@@ -105,16 +118,30 @@ ${DIV}
 ${DIV}
 `);
 
-  // 5. Persist the address for the README / later reference.
-  const outFile = path.resolve(currentDir, '..', `deployment.${network}.json`);
-  writeFileSync(
-    outFile,
-    JSON.stringify({ network, contractAddress: address, requiredShare: requiredShare.toString() }, null, 2) + '\n',
-  );
-  console.log(`  Saved deployment info to ${path.basename(outFile)}\n`);
+      // 5. Persist the address for the README / later reference.
+      const outFile = path.resolve(currentDir, '..', `deployment.${network}.json`);
+      writeFileSync(
+        outFile,
+        JSON.stringify({ network, contractAddress: address, requiredShare: requiredShare.toString() }, null, 2) + '\n',
+      );
+      console.log(`  Saved deployment info to ${path.basename(outFile)}\n`);
 
-  await walletCtx.wallet.close?.();
-  process.exit(0);
+      await walletCtx.wallet.close?.();
+      process.exit(0);
+    } catch (err: any) {
+      const msg = String(err?.message ?? err);
+      if (msg.includes('InsufficientFunds') || msg.includes('could not balance dust')) {
+        console.log(`\n  ⚠ Dust not yet available (wallet still syncing). Waiting 2 min before retry…`);
+        if (attempt < MAX_DEPLOY_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, RETRY_WAIT_MS));
+          continue;
+        }
+      }
+      console.error('\n✗ Deploy failed:\n');
+      console.error(describeError(err));
+      process.exit(1);
+    }
+  }
 }
 
 main().catch((err) => {
