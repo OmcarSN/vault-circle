@@ -9,6 +9,8 @@
 // Lace is actually pointed at.
 // ═══════════════════════════════════════════════════════════════════════
 
+import deployment from '../../../deployment.preview.json';
+
 export type NetworkId = 'preprod' | 'preview';
 
 export interface NetworkEndpoints {
@@ -33,20 +35,16 @@ export const PREVIEW: NetworkEndpoints = {
   proofServer: 'http://127.0.0.1:6300',
 };
 
-// Vault Circle targets Preprod (where the Lace wallet is funded with tNight).
-export const ACTIVE_NETWORK: NetworkId = 'preprod';
+// Dynamically set network and contract address based on deployment receipt
+export const ACTIVE_NETWORK: NetworkId = (deployment.network as NetworkId) || 'preview';
 export const ENDPOINTS: NetworkEndpoints =
   ACTIVE_NETWORK === 'preprod' ? PREPROD : PREVIEW;
 
 // ─── Deployed contract address ─────────────────────────────────────────
-// Filled in once `npm run deploy:preprod` (Phase 2) writes
-// deployment.preprod.json. Until then the frontend runs in "observe demo"
-// mode: connect + privacy explainer work; live ledger reads and circuit
-// calls are disabled with a clear message rather than crashing.
-//
-// You can also override at runtime without a rebuild:
-//   VITE_VAULT_CIRCLE_ADDRESS=<addr> npm run dev
 export const CONTRACT_ADDRESS: string =
-  (import.meta.env.VITE_VAULT_CIRCLE_ADDRESS as string | undefined)?.trim() || '';
+  (import.meta.env.VITE_VAULT_CIRCLE_ADDRESS as string | undefined)?.trim() ||
+  deployment.contractAddress ||
+  '';
 
 export const hasDeployedContract = (): boolean => CONTRACT_ADDRESS.length > 0;
+
