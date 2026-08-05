@@ -2,6 +2,13 @@
 
 > A private, digital savings club built on the Midnight blockchain.
 
+## 🚀 Deployed Contract Address
+
+| Network | Contract Address |
+| --- | --- |
+| **Midnight Preview** | `321e43acf1d343e96ed0469280ef7c2706248d8a0c0688a11bdde95f9a47465f` |
+
+
 ## What is Vault Circle?
 
 Vault Circle is a **Rotating Savings and Credit Association (ROSCA)**—also known as a chit fund, susu, or tanda. It's one of the oldest ways for communities to save and borrow money together. 
