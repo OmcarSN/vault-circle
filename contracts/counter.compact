@@ -31,6 +31,17 @@ export ledger poolSolvent: Boolean;
 witness memberIndex(): Uint<32>;
 witness memberContribution(): Uint<32>;
 
+// ─── KNOWN LIMITATION: identity binding (unfixed by design) ────────────
+// memberIndex() and memberContribution() are client-supplied witnesses.
+// Nothing cryptographically binds them to a specific wallet/member, so the
+// rotation gate in claimPayout() ("idx == currentRecipientIndex") is
+// self-attested: a caller proves they *claim* to be the current recipient,
+// not that they *are*. A dishonest caller could assert any index.
+// Closing this requires a real identity scheme — e.g. registering a
+// commitment (hash of a per-member secret) at joinCircle() and proving
+// knowledge of the preimage on contribute()/claimPayout() — which changes
+// the ledger schema and is out of scope for the current hardening pass.
+
 // ─── Constructor ─────────────────────────────────────────────────────
 constructor(reqShare: Uint<32>) {
   requiredShare = disclose(reqShare);
@@ -53,7 +64,16 @@ export circuit joinCircle(): [] {
 // Increments the contributed count and pool total.
 export circuit contribute(): [] {
   const amount = memberContribution();
+  // Order matters: validate the share first so an underfunded contribution
+  // reports that specific failure regardless of circle capacity.
   assert(amount >= requiredShare, "Contribution does not meet the required share");
+
+  // Emergency stop: a fund flagged insolvent must not keep accepting money.
+  assert(poolSolvent == true, "Fund is marked insolvent; contributions are frozen");
+
+  // Cap contributions at one per member per cycle. Without this the same
+  // caller (or a non-member who never joined) could pad the pool repeatedly.
+  assert(membersContributedThisCycle < memberCount, "All members have already contributed this cycle");
 
   membersContributedThisCycle = disclose((membersContributedThisCycle + 1) as Uint<32>);
   poolTotal = disclose((poolTotal + requiredShare) as Uint<32>);
@@ -78,7 +98,17 @@ export circuit getRotationStatus(): Boolean {
 export circuit claimPayout(): [] {
   const idx = memberIndex();
   assert(idx == currentRecipientIndex, "Not your turn to claim the payout");
-  
+
+  // Emergency stop: an insolvent fund cannot pay out.
+  assert(poolSolvent == true, "Fund is marked insolvent; payouts are frozen");
+
+  // Require all members to have contributed this cycle before payout.
+  // Without this, a recipient can drain the pool early, stealing from contributors.
+  assert(membersContributedThisCycle >= memberCount, "Not all members have contributed this cycle");
+
+  // Guard against zero-member edge case that would wedge rotation at index 1.
+  assert(memberCount > 0, "Cannot claim payout with zero members");
+
   // Advance rotation wrapping around
   const nextIdx = (currentRecipientIndex + 1) as Uint<32>;
   if (nextIdx == memberCount) {

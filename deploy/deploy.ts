@@ -33,21 +33,26 @@ const PRIVATE_STATE_ID = 'vaultCirclePrivateState';
 
 type VaultCirclePrivateState = Record<string, never>;
 
-const contributionAmount = BigInt(process.env.VAULT_CIRCLE_CONTRIBUTION ?? '100');
+// The contract's public counters are all Uint<32>, so any deploy-time amount
+// must fit that range. Parsing with a bare `BigInt(...)` would throw an opaque
+// SyntaxError at module load (before any logging) on a malformed value, or
+// silently bake a negative/oversized number into the on-chain contract. Validate
+// up front and fail with a clear, actionable message instead.
+const UINT32_MAX = (1n << 32n) - 1n;
 
-const witnesses = {
-  memberIndex(context: any): [VaultCirclePrivateState, bigint] {
-    // Default member index for deployment — not used by the constructor,
-    // but required by the Compact runtime to be present.
-    return [context.privateState, 0n];
-  },
-  memberContribution(context: any): [VaultCirclePrivateState, bigint] {
-    return [context.privateState, contributionAmount];
-  },
-};
-
-// Required share per member per cycle — the public constructor argument.
-const requiredShare = BigInt(process.env.VAULT_CIRCLE_REQUIRED_SHARE ?? '100');
+function parseUint32Env(name: string, fallback: string): bigint {
+  const raw = (process.env[name] ?? fallback).trim();
+  let value: bigint;
+  try {
+    value = BigInt(raw);
+  } catch {
+    throw new Error(`Invalid ${name}="${raw}". Expected a whole number in [0, ${UINT32_MAX}].`);
+  }
+  if (value < 0n || value > UINT32_MAX) {
+    throw new Error(`Invalid ${name}=${value}. Out of Uint<32> range [0, ${UINT32_MAX}].`);
+  }
+  return value;
+}
 
 async function main(): Promise<void> {
   const network = (process.argv[2] ?? 'preprod').toLowerCase();
@@ -63,6 +68,22 @@ async function main(): Promise<void> {
     );
   }
   const seedHex = seed.trim();
+
+  // Parse and validate requiredShare and contributionAmount AFTER loadEnv() so
+  // the values from .env.<network> are read (not just shell env + defaults).
+  const requiredShare = parseUint32Env('VAULT_CIRCLE_REQUIRED_SHARE', '100');
+  const contributionAmount = parseUint32Env('VAULT_CIRCLE_CONTRIBUTION', '100');
+
+  const witnesses = {
+    memberIndex(context: any): [VaultCirclePrivateState, bigint] {
+      // Default member index for deployment — not used by the constructor,
+      // but required by the Compact runtime to be present.
+      return [context.privateState, 0n];
+    },
+    memberContribution(context: any): [VaultCirclePrivateState, bigint] {
+      return [context.privateState, contributionAmount];
+    },
+  };
 
   const config = configForNetwork(network);
 

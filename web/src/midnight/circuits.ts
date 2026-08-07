@@ -12,13 +12,17 @@
 //
 // The read/observe tiers (connect, privacy demo, on-chain ledger) ship and
 // run without any of that. To keep the app building and running with only the
-// installed packages, the write path is *gated*: callContribute() throws a
-// clear, actionable error instead of importing packages that aren't present.
+// installed packages, the write path is *gated*: every entry point throws a
+// clear, actionable error instead of importing packages that aren't present —
+// never a fabricated "success".
 //
 // To enable Tier C for real: install the three provider packages above, then
-// swap the body of assembleWritePath() for the real midnight-js provider set
-// (indexerPublicDataProvider + httpClientProofProvider + FetchZkConfigProvider
-// + levelPrivateStateProvider) and findDeployedContract(...).callTx.<circuit>().
+// implement the real midnight-js provider set (indexerPublicDataProvider +
+// httpClientProofProvider + FetchZkConfigProvider + levelPrivateStateProvider)
+// and call findDeployedContract(...).callTx.<circuit>().
+//
+// The contract's two write circuits are contribute() and claimPayout() —
+// there is no setRequiredShare(); the share is fixed at construction time.
 // ═══════════════════════════════════════════════════════════════════════
 
 import { CONTRACT_ADDRESS } from '../config/network';
@@ -87,15 +91,15 @@ export async function callContribute(
 }
 
 /**
- * Call setRequiredShare(share): would set the public required contribution.
+ * Call claimPayout(): would prove (privately) that the caller is the current
+ * recipient and the cycle is fully funded, then advance the rotation.
  *
  * Gated in this build — see the module header. Throws WritePathUnavailableError.
  */
-export async function callSetRequiredShare(
+export async function callClaimPayout(
   _walletApi: DAppConnectorWalletAPI,
   _walletState: WalletState,
   _proverServerUri: string,
-  _share: bigint,
 ): Promise<CircuitCallResult> {
   assertWritePathReady();
   throw new WritePathUnavailableError('unreachable');

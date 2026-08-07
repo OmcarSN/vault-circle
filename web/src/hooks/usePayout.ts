@@ -70,9 +70,13 @@ export function usePayout(): UsePayout {
 
       setPhase('proving');
       try {
-        // TODO: Import real callClaimPayout from circuits once we enable the write path
-        await new Promise((r) => setTimeout(r, 1500));
-        setResult({ returnValue: true, txId: 'tx_placeholder' });
+        const { callClaimPayout } = await import('../midnight/circuits');
+        const res = await callClaimPayout(
+          connection.api,
+          connection.state,
+          connection.uris.proverServerUri,
+        );
+        setResult(res);
         setPhase('done');
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));

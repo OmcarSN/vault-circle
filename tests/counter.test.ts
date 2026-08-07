@@ -179,9 +179,13 @@ describe('Vault Circle ROSCA — Lifecycle', () => {
     currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
     // currentRecipientIndex = 0, memberCount = 1
 
+    // The sole member must fund the cycle before the payout can be claimed.
+    witnessContributionAmount = 100n;
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
+
     witnessMemberIndex = 0n;
     currentCtx = contract.impureCircuits.claimPayout(currentCtx).context;
-    
+
     // Should wrap back to 0
     expect(readState(currentCtx).currentRecipientIndex).toBe(0n);
   });
@@ -228,5 +232,91 @@ describe('Vault Circle ROSCA — Lifecycle', () => {
     expect(() => {
       contract.impureCircuits.markInsolvent(r1.context);
     }).toThrow('Fund is already marked insolvent');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// SECURITY HARDENING — regression coverage for the four fixed loopholes
+// ═══════════════════════════════════════════════════════════════════════
+describe('Vault Circle ROSCA — Security invariants', () => {
+  beforeEach(() => {
+    witnessContributionAmount = 100n;
+    witnessMemberIndex = 0n;
+  });
+
+  // Fix #2: an insolvent fund must not keep accepting money.
+  it('freezes contributions once the fund is marked insolvent', () => {
+    const { contract, context } = setupInitialState(100n);
+    let currentCtx = context;
+
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    currentCtx = contract.impureCircuits.markInsolvent(currentCtx).context;
+
+    witnessContributionAmount = 100n;
+    expect(() => {
+      contract.impureCircuits.contribute(currentCtx);
+    }).toThrow('Fund is marked insolvent; contributions are frozen');
+  });
+
+  // Fix #2: an insolvent fund must not pay out.
+  it('freezes payouts once the fund is marked insolvent', () => {
+    const { contract, context } = setupInitialState(100n);
+    let currentCtx = context;
+
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    witnessContributionAmount = 100n;
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
+
+    // Freeze after funding but before the claim.
+    currentCtx = contract.impureCircuits.markInsolvent(currentCtx).context;
+
+    witnessMemberIndex = 0n;
+    expect(() => {
+      contract.impureCircuits.claimPayout(currentCtx);
+    }).toThrow('Fund is marked insolvent; payouts are frozen');
+  });
+
+  // Fix #3: a member (or non-member) cannot pad the pool with repeat deposits.
+  it('caps contributions at one per member per cycle', () => {
+    const { contract, context } = setupInitialState(100n);
+    let currentCtx = context;
+
+    // Single member, single allowed contribution.
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    witnessContributionAmount = 100n;
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
+    expect(readState(currentCtx).membersContributedThisCycle).toBe(1n);
+
+    // Second deposit in the same cycle is rejected.
+    expect(() => {
+      contract.impureCircuits.contribute(currentCtx);
+    }).toThrow('All members have already contributed this cycle');
+  });
+
+  // Fix #1: the recipient cannot drain the pool before the cycle is fully funded.
+  it('rejects a payout claim before all members have contributed', () => {
+    const { contract, context } = setupInitialState(100n);
+    let currentCtx = context;
+
+    // Two members join, but only one funds the cycle.
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    currentCtx = contract.impureCircuits.joinCircle(currentCtx).context;
+    witnessContributionAmount = 100n;
+    currentCtx = contract.impureCircuits.contribute(currentCtx).context;
+
+    witnessMemberIndex = 0n;
+    expect(() => {
+      contract.impureCircuits.claimPayout(currentCtx);
+    }).toThrow('Not all members have contributed this cycle');
+  });
+
+  // Fix #4: claiming against an empty circle must not wedge the rotation.
+  it('rejects a payout claim when the circle has zero members', () => {
+    const { contract, context } = setupInitialState(100n);
+    // No one has joined: memberCount = 0, currentRecipientIndex = 0.
+    witnessMemberIndex = 0n;
+    expect(() => {
+      contract.impureCircuits.claimPayout(context);
+    }).toThrow('Cannot claim payout with zero members');
   });
 });
