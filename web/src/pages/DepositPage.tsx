@@ -84,14 +84,14 @@ export function DepositPage() {
         )}
 
         {/* Inline Explainer */}
-        <div style={{ display: 'flex', gap: '16px', marginTop: '24px', padding: '16px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', gap: '16px', marginTop: '24px', padding: '16px', background: 'var(--panel-2)', borderRadius: '8px', border: '1px solid var(--border)' }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '0.9rem', color: 'var(--ok)', marginBottom: '4px', fontWeight: 600 }}>🔒 What Stays Hidden</div>
             <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.8 }}>Your exact deposit amount is encrypted on your device. Other members cannot see how much you deposited.</p>
           </div>
           <div style={{ width: '1px', background: 'var(--border)' }}></div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>👁 What is Proven</div>
+            <div style={{ fontSize: '0.9rem', color: 'var(--accent-blue)', marginBottom: '4px', fontWeight: 600 }}>👁 What is Proven</div>
             <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.8 }}>The ZK Proof only verifies that you met the required share threshold (<code>shareMet: true/false</code>).</p>
           </div>
         </div>
