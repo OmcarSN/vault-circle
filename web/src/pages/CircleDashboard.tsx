@@ -4,8 +4,12 @@ import { useGlobalState } from '../context/GlobalStateContext';
 import { useLedger } from '../hooks/useLedger';
 import { LedgerPanel } from '../components/LedgerPanel';
 import { isDemoCircle, DEMO_CIRCLE } from '../config/demo';
+import { PageHeader } from '../components/PageHeader';
+import { DemoBanner } from '../components/DemoBanner';
+import { CardSkeleton, EmptyState } from '../components/EmptyState';
+import { EyeIcon, LockIcon } from '../components/Icons';
 
-export function CircleDashboard() { 
+export function CircleDashboard() {
   const { id } = useParams();
   const { wallet, setActiveCircleId } = useGlobalState();
   const ledgerState = useLedger();
@@ -17,7 +21,6 @@ export function CircleDashboard() {
     return () => setActiveCircleId(null);
   }, [id, setActiveCircleId]);
 
-  // Use demo data if it's the demo circle, otherwise use live ledger
   const circleData = isDemo
     ? {
         requiredShare: DEMO_CIRCLE.requiredShare,
@@ -41,136 +44,118 @@ export function CircleDashboard() {
   const mockedMemberIndex = 2;
   const currentRecipientIndex = circleData ? Number(circleData.currentRecipientIndex) : 0;
   const isMyTurn = isConnected && currentRecipientIndex === mockedMemberIndex;
+  const circleName = isDemo ? DEMO_CIRCLE.name : `Circle ${id?.slice(0, 8)}…`;
 
-  const circleName = isDemo ? DEMO_CIRCLE.name : `Circle ${id?.slice(0, 8)}...`;
+  // Live-circle load states (demo always has data).
+  const liveLoading = !isDemo && ledgerState.loading;
+  const liveError = !isDemo && ledgerState.error;
+  const liveEmpty = !isDemo && !ledgerState.loading && !ledgerState.error && !ledgerState.ledger;
 
   return (
     <div className="page-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <Link to="/circles" style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>← Back to Circles</Link>
-          <h1 style={{ marginTop: '8px' }}>{circleName}</h1>
-          <p style={{ opacity: 0.8, fontFamily: 'monospace', fontSize: '0.85rem' }}>{id}</p>
-          {isDemo && (
-            <span className="badge warn" style={{ marginTop: '4px' }}>
-              <span className="dot" /> Demo Mode
-            </span>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <Link to={`/circles/${id}/deposit`}>
-            <button className="primary">Make Deposit</button>
-          </Link>
-          <Link to={`/circles/${id}/payout`}>
-            <button className={isMyTurn ? 'primary' : 'ghost'} style={{ border: '1px solid var(--border)' }}>
-              Claim Payout
-            </button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Circle dashboard"
+        title={circleName}
+        subtitle={<span className="mono">{id}</span>}
+        backTo="/circles"
+        backLabel="Back to Circles"
+        actions={
+          <>
+            <Link to={`/circles/${id}/deposit`}><button className="primary">Make Deposit</button></Link>
+            <Link to={`/circles/${id}/payout`}><button className={isMyTurn ? 'primary' : 'ghost'}>Claim Payout</button></Link>
+          </>
+        }
+      />
 
-      {/* Stats Row */}
+      {isDemo && <DemoBanner />}
+
+      <p className="privacy-legend" style={{ marginBottom: 20 }}>
+        <span><EyeIcon /> Public on-chain state</span>
+        <span><LockIcon /> Private, decrypted locally</span>
+      </p>
+
+      {liveLoading && <CardSkeleton rows={4} />}
+      {liveError && (
+        <div className="notice err">Could not load ledger data: {ledgerState.error?.message}</div>
+      )}
+      {liveEmpty && (
+        <EmptyState title="No ledger data yet">
+          This circle has no readable on-chain state. Confirm the contract address is deployed and
+          reachable, then refresh.
+        </EmptyState>
+      )}
+
       {circleData && (
-        <div className="stats-grid" style={{ marginBottom: '24px' }}>
-          <div className="stat-card">
-            <div className="stat-title">Pool Balance <span>👁</span></div>
-            <div className="stat-value">{circleData.poolTotal.toString()}</div>
-            <div className="stat-subtitle">tNIGHT</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-title">Required Share <span>👁</span></div>
-            <div className="stat-value">{circleData.requiredShare.toString()}</div>
-            <div className="stat-subtitle">tNIGHT per cycle</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-title">Members <span>👁</span></div>
-            <div className="stat-value">{circleData.memberCount.toString()}</div>
-            <div className="stat-subtitle">active participants</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-title">Solvency <span>👁</span></div>
-            <div className="stat-value" style={{ color: circleData.poolSolvent ? 'var(--ok)' : 'var(--danger)' }}>
-              {circleData.poolSolvent ? 'Solvent' : 'Insolvent'}
-            </div>
-            <div className="stat-subtitle">Cycle {(circleData.cycleCount + 1n).toString()}</div>
-          </div>
+        <div className="stats-grid">
+          <StatTile label="Pool Balance" value={circleData.poolTotal.toString()} sub="tNIGHT" />
+          <StatTile label="Required Share" value={circleData.requiredShare.toString()} sub="tNIGHT per cycle" />
+          <StatTile label="Members" value={circleData.memberCount.toString()} sub="active participants" />
+          <StatTile
+            label="Solvency"
+            value={circleData.poolSolvent ? 'Solvent' : 'Insolvent'}
+            valueColor={circleData.poolSolvent ? 'var(--ok)' : 'var(--danger)'}
+            sub={`Cycle ${(circleData.cycleCount + 1n).toString()}`}
+          />
         </div>
       )}
 
-      <div className="main-grid">
-        {/* ── Public Ledger Data (👁) ── */}
-        <div style={{ position: 'relative' }}>
-          <div style={{ position: 'absolute', top: '-10px', right: '10px', background: 'var(--panel-solid)', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '0.8rem', color: 'var(--muted)', zIndex: 2 }}>
-            👁 Public On-Chain
-          </div>
-          {isDemo ? (
-            <section className="panel">
-              <h2>Public Ledger State</h2>
-              <p className="sub">Data visible to all network participants.</p>
-              <div className="kv" style={{ marginTop: 16 }}>
-                <div className="k">Pool Total</div>
-                <div className="mono" style={{ fontWeight: 700 }}>{circleData!.poolTotal.toString()} tNIGHT</div>
-                <div className="k">Required Share</div>
-                <div className="mono" style={{ fontWeight: 700 }}>{circleData!.requiredShare.toString()} tNIGHT</div>
-                <div className="k">Member Count</div>
-                <div className="mono" style={{ fontWeight: 700 }}>{circleData!.memberCount.toString()}</div>
-                <div className="k">Current Cycle</div>
-                <div className="mono" style={{ fontWeight: 700 }}>{(circleData!.cycleCount + 1n).toString()}</div>
-                <div className="k">Recipient Index</div>
-                <div className="mono" style={{ fontWeight: 700 }}>{circleData!.currentRecipientIndex.toString()}</div>
-                <div className="k">Pool Solvent</div>
-                <div>
-                  <span className={`badge ${circleData!.poolSolvent ? 'ok' : 'err'}`}>
-                    <span className="dot" />
-                    {circleData!.poolSolvent ? 'Yes' : 'No'}
-                  </span>
+      {circleData && (
+        <div className="main-grid">
+          <div>
+            {isDemo ? (
+              <section className="panel">
+                <h2><EyeIcon size={16} /> Public Ledger State</h2>
+                <p className="sub">Data visible to every network participant.</p>
+                <div className="kv" style={{ marginTop: 16 }}>
+                  <div className="k">Pool Total</div><div className="mono" style={{ fontWeight: 700 }}>{circleData.poolTotal.toString()} tNIGHT</div>
+                  <div className="k">Required Share</div><div className="mono" style={{ fontWeight: 700 }}>{circleData.requiredShare.toString()} tNIGHT</div>
+                  <div className="k">Member Count</div><div className="mono" style={{ fontWeight: 700 }}>{circleData.memberCount.toString()}</div>
+                  <div className="k">Current Cycle</div><div className="mono" style={{ fontWeight: 700 }}>{(circleData.cycleCount + 1n).toString()}</div>
+                  <div className="k">Recipient Index</div><div className="mono" style={{ fontWeight: 700 }}>{circleData.currentRecipientIndex.toString()}</div>
+                  <div className="k">Pool Solvent</div>
+                  <div><span className={`badge ${circleData.poolSolvent ? 'ok' : 'err'}`}><span className="dot" />{circleData.poolSolvent ? 'Yes' : 'No'}</span></div>
                 </div>
-              </div>
-            </section>
-          ) : (
-            <LedgerPanel ledger={ledgerState} />
-          )}
-        </div>
-
-        {/* ── Private Member Status (🔒) ── */}
-        <div style={{ position: 'relative' }}>
-          <div style={{ position: 'absolute', top: '-10px', right: '10px', background: 'var(--panel-solid)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.4)', fontSize: '0.8rem', color: 'var(--ok)', zIndex: 2 }}>
-            🔒 Private (Encrypted)
+              </section>
+            ) : (
+              <LedgerPanel ledger={ledgerState} />
+            )}
           </div>
-          <section className="panel" style={{ border: '1px solid rgba(52, 211, 153, 0.25)', background: 'rgba(52, 211, 153, 0.03)' }}>
-            <h2>Your Status</h2>
-            <p className="sub">
-              This data is decrypted locally using your connected wallet. It is never visible to the network or other members.
-            </p>
 
+          <section className="panel" style={{ border: '1px solid rgba(47,182,124,.25)' }}>
+            <h2><LockIcon size={16} /> Your Status</h2>
+            <p className="sub">
+              {isDemo
+                ? 'Illustrative member data for the demonstration circle — generated locally, not decrypted from a wallet.'
+                : 'Decrypted locally using your connected wallet. Never visible to the network or other members.'}
+            </p>
             {!isConnected ? (
-              <div className="notice warn" style={{ marginTop: '20px' }}>
-                Connect your Lace wallet to view your private circle status.
-              </div>
+              <div className="notice warn" style={{ marginTop: 20 }}>Connect your Lace wallet to view your private circle status.</div>
             ) : (
               <div className="kv" style={{ marginTop: 24 }}>
-                <div className="k">Your Identity</div>
-                <div className="mono" style={{ fontWeight: 700 }}>Anonymous Member #{mockedMemberIndex + 1}</div>
-
-                <div className="k">Contributions This Cycle</div>
-                <div className="mono" style={{ fontWeight: 700, color: 'var(--ok)' }}>1 / 1 (Verified ✓)</div>
-
-                <div className="k">Total Past Contributions</div>
-                <div className="mono" style={{ fontWeight: 700 }}>500 tNIGHT</div>
-
+                <div className="k">Your Identity</div><div className="mono" style={{ fontWeight: 700 }}>Anonymous Member #{mockedMemberIndex + 1}</div>
+                <div className="k">Contributions This Cycle</div><div className="mono" style={{ fontWeight: 700, color: 'var(--ok)' }}>1 / 1 verified</div>
+                <div className="k">Total Past Contributions</div><div className="mono" style={{ fontWeight: 700 }}>500 tNIGHT</div>
                 <div className="k">Payout Rotation</div>
                 <div>
-                  {isMyTurn ? (
-                    <span className="badge ok"><span className="dot" /> It's your turn to claim!</span>
-                  ) : (
-                    <span className="badge off"><span className="dot" /> Waiting — currently member #{currentRecipientIndex + 1}</span>
-                  )}
+                  {isMyTurn
+                    ? <span className="badge ok"><span className="dot" /> Your turn to claim</span>
+                    : <span className="badge off"><span className="dot" /> Waiting — current is member #{currentRecipientIndex + 1}</span>}
                 </div>
               </div>
             )}
           </section>
         </div>
-      </div>
+      )}
     </div>
-  ); 
+  );
+}
+
+function StatTile({ label, value, sub, valueColor }: { label: string; value: string; sub: string; valueColor?: string }) {
+  return (
+    <div className="stat-card">
+      <div className="stat-title">{label} <EyeIcon size={13} style={{ color: 'var(--muted)' }} /></div>
+      <div className="stat-value" style={valueColor ? { color: valueColor } : undefined}>{value}</div>
+      <div className="stat-subtitle">{sub}</div>
+    </div>
+  );
 }

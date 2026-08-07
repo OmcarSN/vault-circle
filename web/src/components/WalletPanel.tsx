@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { UseWallet } from '../hooks/useWallet';
 import { truncateMiddle, copyToClipboard } from '../util/format';
+import { ArrowRightIcon } from './Icons';
 
 export function WalletPanel({ wallet }: { wallet: UseWallet }) {
   const { status, connection, error, hint, injection, connect, disconnect, redetect } =
@@ -55,8 +56,9 @@ export function WalletPanel({ wallet }: { wallet: UseWallet }) {
             target="_blank"
             rel="noreferrer"
             className="small muted"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
-            Get Midnight Lace Extension →
+            Get Midnight Lace Extension <ArrowRightIcon size={12} />
           </a>
         )}
       </div>

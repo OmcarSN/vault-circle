@@ -1,248 +1,127 @@
-// No imports needed
+import { Link } from 'react-router-dom';
+import { PageHeader } from '../components/PageHeader';
+import { Section } from '../components/Section';
+import { ArrowRightIcon, EyeIcon, LockIcon } from '../components/Icons';
+
+// One node in the architecture flow.
+function Node({ title, desc, tone = 'neutral' }: { title: string; desc: string; tone?: 'neutral' | 'accent' | 'ok' }) {
+  const border =
+    tone === 'accent' ? 'rgba(79,107,237,.35)' : tone === 'ok' ? 'rgba(47,182,124,.35)' : 'var(--border)';
+  return (
+    <div style={{ background: 'var(--surface-2)', border: `1px solid ${border}`, borderRadius: 8, padding: '16px 18px' }}>
+      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{title}</div>
+      <div className="small muted">{desc}</div>
+    </div>
+  );
+}
+
+function FlowLabel({ children }: { children: string }) {
+  return (
+    <div className="mono small" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--muted)', padding: '4px 0' }}>
+      <svg width="12" height="14" viewBox="0 0 12 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <line x1="6" y1="1" x2="6" y2="12" />
+        <polyline points="2 8 6 12 10 8" />
+      </svg>
+      {children}
+    </div>
+  );
+}
 
 export function About() {
   return (
-    <div className="page-container" style={{ maxWidth: '860px', margin: '0 auto' }}>
+    <div className="page-container page-container--narrow">
+      <PageHeader
+        eyebrow="About"
+        title="About Vault Circle"
+        subtitle="A privacy-preserving ROSCA (Rotating Savings & Credit Association) on the Midnight Network. Members pool funds and take turns receiving the pot, with zero-knowledge proofs enforcing fairness without exposing anyone's financial details."
+      />
 
-      {/* ── Header ── */}
-      <section style={{ marginBottom: '32px' }}>
-        <h1 style={{
-          fontSize: '2rem',
-          fontWeight: 800,
-          letterSpacing: '-0.02em',
-          marginBottom: '8px',
-          background: 'linear-gradient(120deg, #fff 0%, #cdd4ff 55%, #9fe0ff 100%)',
-          WebkitBackgroundClip: 'text',
-          backgroundClip: 'text',
-          color: 'transparent',
-        }}>
-          About Vault Circle
-        </h1>
-        <p style={{ color: 'var(--muted)', fontSize: '1rem', lineHeight: 1.6, margin: 0 }}>
-          A privacy-preserving ROSCA (Rotating Savings &amp; Credit Association) built on the Midnight Network.
-          Members pool funds together and take turns receiving the full pot — with ZK proofs ensuring fairness
-          without exposing anyone's financial details.
+      <Section title="What is a ROSCA?">
+        <p style={{ color: 'var(--text-2)', lineHeight: 1.65, margin: 0 }}>
+          A <strong>Rotating Savings and Credit Association</strong> is one of the oldest financial tools
+          in the world. A group each contributes a fixed amount every cycle, and each cycle one member
+          receives the entire pooled sum — continuing until everyone has had a turn. It is
+          community-powered lending with no bank in the middle.
         </p>
-      </section>
+        <p style={{ color: 'var(--text-2)', lineHeight: 1.65, margin: '14px 0 0' }}>
+          <strong>The problem on-chain:</strong> most blockchains make every transaction public — who
+          deposited, how much, and when they were paid. Vault Circle closes that gap with
+          zero-knowledge proofs on Midnight.
+        </p>
+      </Section>
 
-      {/* ── What is a ROSCA? ── */}
-      <section className="panel" style={{ marginBottom: '24px' }}>
-        <h2>What is a ROSCA?</h2>
-        <p style={{ color: 'var(--muted)', lineHeight: 1.65, margin: '12px 0 0' }}>
-          A <strong>Rotating Savings and Credit Association</strong> is one of the oldest financial tools in the world.
-          A group of people each contribute a fixed amount every cycle. Each cycle, one member receives the entire
-          pooled sum. This continues until everyone has had their turn. It's community-powered lending — no banks,
-          no intermediaries.
-        </p>
-        <p style={{ color: 'var(--muted)', lineHeight: 1.65, margin: '12px 0 0' }}>
-          <strong>The problem on-chain:</strong> Traditional blockchains make every transaction public. Everyone can see
-          who deposited, how much, and when they got paid out. Vault Circle solves this with zero-knowledge proofs on
-          the Midnight Network.
-        </p>
-      </section>
-
-      {/* ── Privacy Claim ── */}
-      <section className="panel" style={{ marginBottom: '24px' }}>
-        <h2>The Privacy Guarantee</h2>
-        <p style={{ color: 'var(--muted)', lineHeight: 1.6, margin: '12px 0 20px' }}>
-          Vault Circle separates what the <em>group needs to verify</em> from what should remain
-          <em> strictly personal</em>. Zero-knowledge proofs make this possible.
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          <div style={{
-            background: 'rgba(52, 211, 153, 0.06)',
-            border: '1px solid rgba(52, 211, 153, 0.25)',
-            padding: '20px',
-            borderRadius: '12px',
-          }}>
-            <h3 style={{ color: 'var(--ok)', margin: '0 0 14px', fontSize: '1rem', fontWeight: 700 }}>
-              🔒 Stays Private
+      <Section title="The privacy guarantee" subtitle="Separating what the group must verify from what stays strictly personal.">
+        <div className="grid-2">
+          <div className="chain-strip" style={{ borderColor: 'rgba(47,182,124,.25)' }}>
+            <h3 style={{ color: 'var(--ok)', margin: '0 0 14px', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <LockIcon /> Stays private
             </h3>
-            <ul style={{ margin: 0, paddingLeft: '18px', lineHeight: 1.8, fontSize: '0.9rem', color: 'var(--muted)' }}>
+            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8, fontSize: 13, color: 'var(--text-2)' }}>
               <li><strong>Exact contribution amounts</strong> — encrypted locally, never on the ledger</li>
               <li><strong>Individual payout history</strong> — only you know when and how much you claimed</li>
-              <li><strong>Identity ↔ rotation mapping</strong> — your wallet address is decoupled from your turn order</li>
+              <li><strong>Identity-to-rotation mapping</strong> — your address is decoupled from turn order</li>
             </ul>
           </div>
-
-          <div style={{
-            background: 'rgba(76, 141, 255, 0.06)',
-            border: '1px solid rgba(76, 141, 255, 0.25)',
-            padding: '20px',
-            borderRadius: '12px',
-          }}>
-            <h3 style={{ color: 'var(--accent-blue)', margin: '0 0 14px', fontSize: '1rem', fontWeight: 700 }}>
-              👁 Publicly Verifiable
+          <div className="secret-strip" style={{ borderStyle: 'solid', borderColor: 'rgba(79,107,237,.25)' }}>
+            <h3 style={{ color: 'var(--accent-blue)', margin: '0 0 14px', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <EyeIcon /> Publicly verifiable
             </h3>
-            <ul style={{ margin: 0, paddingLeft: '18px', lineHeight: 1.8, fontSize: '0.9rem', color: 'var(--muted)' }}>
-              <li><strong>Pool solvency</strong> — cryptographic guarantee the pool is fully funded before payouts</li>
-              <li><strong>Fair rotation</strong> — on-chain enforcement that no one can skip the line or claim twice</li>
-              <li><strong>Threshold met</strong> — ZK proof that each member met the minimum share (yes/no only)</li>
+            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8, fontSize: 13, color: 'var(--text-2)' }}>
+              <li><strong>Pool solvency</strong> — a guarantee the pool is fully funded before payouts</li>
+              <li><strong>Fair rotation</strong> — on-chain enforcement that no one skips the line or claims twice</li>
+              <li><strong>Threshold met</strong> — a proof that each member met the minimum share (yes/no only)</li>
             </ul>
           </div>
         </div>
-      </section>
+      </Section>
 
-      {/* ── Architecture ── */}
-      <section className="panel" style={{ marginBottom: '24px' }}>
-        <h2>System Architecture</h2>
-        <p className="sub" style={{ marginBottom: '24px' }}>How your browser, the ZK proof engine, and the Midnight ledger work together.</p>
-
-        {/* Visual flow diagram */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-          {/* Row 1: Client side */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr auto 1fr',
-            gap: '16px',
-            alignItems: 'center',
-          }}>
-            <div style={{
-              background: 'var(--panel-2)',
-              border: '1px solid var(--border)',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>🔐 Lace Wallet</div>
-              <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>Signs transactions, holds keys</div>
-            </div>
-
-            <div style={{
-              color: 'var(--accent)',
-              fontWeight: 700,
-              fontSize: '1.4rem',
-              textAlign: 'center',
-            }}>⟷</div>
-
-            <div style={{
-              background: 'var(--panel-2)',
-              border: '1px solid var(--border)',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>🖥️ React Frontend</div>
-              <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>Dashboard, Deposit, Payout UI</div>
-            </div>
+      <Section title="System architecture" subtitle="How your browser, the ZK proof engine, and the Midnight ledger work together.">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="grid-2">
+            <Node title="Lace Wallet" desc="Signs transactions, holds keys" />
+            <Node title="React Frontend" desc="Dashboard, deposit, payout UI" />
           </div>
-
-          {/* Arrow down */}
-          <div style={{
-            textAlign: 'center',
-            background: 'var(--grad)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            color: 'transparent',
-            fontWeight: 800,
-            fontSize: '1.2rem',
-          }}>▼ ZK Proof (private witness) ▼</div>
-
-          {/* Row 2: Proof + Contract */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr auto 1fr',
-            gap: '16px',
-            alignItems: 'center',
-          }}>
-            <div style={{
-              background: 'rgba(139, 108, 255, 0.08)',
-              border: '1px solid rgba(139, 108, 255, 0.3)',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>⚡ Proof Server</div>
-              <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>Generates ZK proof locally</div>
-            </div>
-
-            <div style={{
-              color: 'var(--ok)',
-              fontWeight: 700,
-              fontSize: '1.4rem',
-              textAlign: 'center',
-            }}>→</div>
-
-            <div style={{
-              background: 'rgba(52, 211, 153, 0.08)',
-              border: '1px solid rgba(52, 211, 153, 0.3)',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>📜 Compact Contract</div>
-              <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>contribute(), claimPayout(), checkSolvency()</div>
-            </div>
+          <FlowLabel>ZK proof over private witness</FlowLabel>
+          <div className="grid-2">
+            <Node title="Proof Server" desc="Generates the ZK proof locally" tone="accent" />
+            <Node title="Compact Contract" desc="contribute(), claimPayout(), checkSolvency()" tone="accent" />
           </div>
-
-          {/* Arrow down */}
-          <div style={{
-            textAlign: 'center',
-            background: 'var(--grad)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            color: 'transparent',
-            fontWeight: 800,
-            fontSize: '1.2rem',
-          }}>▼ Public State (on-chain) ▼</div>
-
-          {/* Row 3: Ledger */}
-          <div style={{
-            background: 'rgba(52, 211, 153, 0.05)',
-            border: '1px solid rgba(52, 211, 153, 0.2)',
-            borderRadius: '12px',
-            padding: '20px 24px',
-            textAlign: 'center',
-          }}>
-            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '8px' }}>Midnight Public Ledger</div>
-            <div style={{
-              display: 'flex',
-              gap: '16px',
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              color: 'var(--muted)',
-              fontSize: '0.85rem',
-            }}>
+          <FlowLabel>Public state committed on-chain</FlowLabel>
+          <div style={{ background: 'rgba(47,182,124,.05)', border: '1px solid rgba(47,182,124,.2)', borderRadius: 8, padding: '18px 20px', textAlign: 'center' }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Midnight Public Ledger</div>
+            <div className="row" style={{ justifyContent: 'center', gap: 8 }}>
               {['poolSolvent', 'poolTotal', 'memberCount', 'cycleCount', 'recipientIndex'].map((field) => (
-                <code key={field} style={{ fontSize: '0.82rem' }}>{field}</code>
+                <code key={field}>{field}</code>
               ))}
             </div>
           </div>
         </div>
-      </section>
+      </Section>
 
-      {/* ── Built With ── */}
-      <section className="panel" style={{ marginBottom: '24px' }}>
-        <h2>Built With</h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '14px',
-          marginTop: '16px',
-        }}>
+      <Section title="Built with">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14 }}>
           {[
-            { name: 'Midnight Network', role: 'Privacy L1 blockchain' },
-            { name: 'Compact', role: 'ZK circuit language' },
-            { name: 'Midnight.js SDK', role: 'Contract interaction' },
-            { name: 'Lace Wallet', role: 'DApp connector' },
-            { name: 'React + TypeScript', role: 'Frontend framework' },
-            { name: 'Vite', role: 'Build tooling' },
-          ].map((t) => (
-            <div key={t.name} style={{
-              background: 'var(--panel-2)',
-              border: '1px solid var(--border)',
-              borderRadius: '10px',
-              padding: '14px 16px',
-            }}>
-              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t.name}</div>
-              <div style={{ color: 'var(--muted)', fontSize: '0.8rem', marginTop: '2px' }}>{t.role}</div>
+            ['Midnight Network', 'Privacy L1 blockchain'],
+            ['Compact', 'ZK circuit language'],
+            ['Midnight.js SDK', 'Contract interaction'],
+            ['Lace Wallet', 'DApp connector'],
+            ['React + TypeScript', 'Frontend framework'],
+            ['Vite', 'Build tooling'],
+          ].map(([name, role]) => (
+            <div key={name} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
+              <div style={{ fontWeight: 600, fontSize: 13.5 }}>{name}</div>
+              <div className="small muted" style={{ marginTop: 2 }}>{role}</div>
             </div>
           ))}
         </div>
-      </section>
+      </Section>
 
+      <div className="row spread" style={{ marginTop: 8 }}>
+        <span className="small muted">Ready to see it in action?</span>
+        <Link to="/circles">
+          <button className="primary">Browse Circles <ArrowRightIcon size={13} style={{ marginLeft: 2, verticalAlign: '-2px' }} /></button>
+        </Link>
+      </div>
     </div>
   );
 }

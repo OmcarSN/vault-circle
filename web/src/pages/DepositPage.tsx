@@ -1,16 +1,16 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useGlobalState } from '../context/GlobalStateContext';
 import { useContribute } from '../hooks/useContribute';
 import { useLedger } from '../hooks/useLedger';
 import { isDemoCircle, DEMO_CIRCLE } from '../config/demo';
+import { PageHeader } from '../components/PageHeader';
+import { DemoBanner } from '../components/DemoBanner';
+import { ProofServerRow } from '../components/ProofServerRow';
+import { CheckIcon, EyeIcon, LockIcon } from '../components/Icons';
 
-const PROOF_SERVER_CMD =
-  'docker run --platform linux/amd64 -p 6300:6300 midnightntwrk/proof-server:2.0.8';
-
-export function DepositPage() { 
+export function DepositPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { wallet } = useGlobalState();
   const call = useContribute();
   const ledger = useLedger();
@@ -19,22 +19,29 @@ export function DepositPage() {
   const [amount, setAmount] = useState('100');
   const connected = wallet.status === 'connected' && wallet.connection;
   const { phase, proofServer, result, error, hasContract } = call;
-
-  // Demo simulation state
   const [demoPhase, setDemoPhase] = useState<'idle' | 'proving' | 'done'>('idle');
   const [demoResult, setDemoResult] = useState<{ shareMet: boolean; txId: string } | null>(null);
 
-  const busy = isDemo ? demoPhase === 'proving' : (phase === 'checking' || phase === 'proving');
-  const canSubmit = !!connected && !busy && amount.trim() !== '';
+  const busy = isDemo ? demoPhase === 'proving' : phase === 'checking' || phase === 'proving';
+  const validation = useMemo(() => {
+    const trimmed = amount.trim();
+    if (!trimmed) return 'Enter a contribution amount.';
+    try {
+      if (BigInt(trimmed) < 0n) return 'Amount must be zero or greater.';
+    } catch {
+      return 'Enter a whole-number amount.';
+    }
+    return null;
+  }, [amount]);
+  const canSubmit = !!connected && !busy && !validation;
 
   const onSubmit = async () => {
-    if (!connected) return;
+    if (!connected || validation) return;
     if (isDemo) {
-      // Simulate ZK proof generation
       setDemoPhase('proving');
       setDemoResult(null);
-      await new Promise((r) => setTimeout(r, 2200));
-      const parsed = BigInt(amount.trim() || '0');
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+      const parsed = BigInt(amount.trim());
       setDemoResult({
         shareMet: parsed >= DEMO_CIRCLE.requiredShare,
         txId: '0x' + Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
@@ -42,178 +49,91 @@ export function DepositPage() {
       setDemoPhase('done');
       return;
     }
-    let parsed: bigint;
-    try {
-      parsed = BigInt(amount.trim());
-    } catch {
-      return;
-    }
-    await call.contribute(wallet.connection!, parsed);
+    await call.contribute(wallet.connection!, BigInt(amount.trim()));
     if (ledger.hasAddress) void ledger.refresh();
   };
 
   return (
-    <div className="page-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <button className="small ghost" onClick={() => navigate(`/circles/${id}`)} style={{ marginBottom: '12px' }}>
-            &larr; Back to Dashboard
-          </button>
-          <h1>💳 Deposit to Circle</h1>
-          <p style={{ opacity: 0.8, fontFamily: 'monospace' }}>Contract: {id}</p>
-        </div>
-      </div>
+    <div className="page-container page-container--narrow">
+      <PageHeader
+        eyebrow="Private contribution"
+        title="Deposit to Circle"
+        subtitle={<span className="mono">Contract: {id}</span>}
+        backTo={`/circles/${id}`}
+        backLabel="Back to Dashboard"
+      />
+      {isDemo && <DemoBanner note="The proof and transaction hash below are simulated locally." />}
 
       <section className="panel">
-        <p className="sub">
-          Contribute your cycle share with 100% financial privacy.
-        </p>
+        <p className="sub">Contribute your cycle share without disclosing the exact amount to other members.</p>
 
-        {/* Network Proof Engine Status */}
         {isDemo ? (
-          <div className="notice" style={{ marginTop: 12, borderColor: 'rgba(52, 211, 153, 0.3)', background: 'rgba(52, 211, 153, 0.06)' }}>
-            <div className="row spread">
-              <span className="badge ok">
-                <span className="dot" />
-                Demo Mode — ZK Proof Simulation Active
-              </span>
-            </div>
+          <div className="notice">
+            <span className="badge warn"><span className="dot" /> Local proof simulation</span>
           </div>
         ) : (
           <ProofServerRow status={proofServer} onRecheck={call.recheckProofServer} />
         )}
 
-        {/* Inline Explainer */}
-        <div style={{ display: 'flex', gap: '16px', marginTop: '24px', padding: '16px', background: 'var(--panel-2)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '0.9rem', color: 'var(--ok)', marginBottom: '4px', fontWeight: 600 }}>🔒 What Stays Hidden</div>
-            <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.8 }}>Your exact deposit amount is encrypted on your device. Other members cannot see how much you deposited.</p>
+        <div className="grid-2" style={{ marginTop: 20 }}>
+          <div className="secret-strip">
+            <div className="row" style={{ color: 'var(--ok)', fontSize: 13, fontWeight: 600, marginBottom: 6 }}><LockIcon /> Stays private</div>
+            <p className="small muted" style={{ margin: 0 }}>Your exact amount is encrypted on this device and never published to other members.</p>
           </div>
-          <div style={{ width: '1px', background: 'var(--border)' }}></div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '0.9rem', color: 'var(--accent-blue)', marginBottom: '4px', fontWeight: 600 }}>👁 What is Proven</div>
-            <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.8 }}>The ZK Proof only verifies that you met the required share threshold (<code>shareMet: true/false</code>).</p>
+          <div className="chain-strip" style={{ borderColor: 'var(--border)' }}>
+            <div className="row" style={{ color: 'var(--accent-blue)', fontSize: 13, fontWeight: 600, marginBottom: 6 }}><EyeIcon /> Public result</div>
+            <p className="small muted" style={{ margin: 0 }}>The proof only discloses whether the required share threshold was met.</p>
           </div>
         </div>
 
-        {/* Encrypted Input Field */}
         <div style={{ marginTop: 24 }}>
           <label className="secret-strip" style={{ display: 'block' }}>
-            <div className="small muted" style={{ marginBottom: 8, fontWeight: 600 }}>
-              🔒 Your Deposit Amount
-            </div>
+            <div className="small" style={{ marginBottom: 8, fontWeight: 600 }}>Contribution amount (tNIGHT)</div>
             <input
               type="number"
               min="0"
+              step="1"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(event) => setAmount(event.target.value)}
               disabled={busy}
-              placeholder="Enter deposit amount (e.g. 100)"
-              style={{ width: '100%' }}
+              placeholder="100"
+              aria-invalid={!!validation}
+              aria-describedby="amount-validation"
             />
+            <div id="amount-validation" className={`small ${validation ? '' : 'muted'}`} style={{ color: validation ? 'var(--danger)' : undefined, marginTop: 7 }}>
+              {validation ?? `Required share: ${DEMO_CIRCLE.requiredShare.toString()} tNIGHT`}
+            </div>
           </label>
         </div>
 
         <div className="row spread" style={{ marginTop: 24 }}>
           <div>
             {!connected && <span className="small muted">Connect your Lace wallet to participate.</span>}
-            {connected && !hasContract && (
-              <span className="small muted ok">Client ZK Proof Simulation Active</span>
-            )}
+            {connected && !hasContract && !isDemo && <span className="small muted">Simulated locally — no contract deployed.</span>}
           </div>
           <button className="primary" onClick={onSubmit} disabled={!canSubmit}>
             {isDemo
-              ? (demoPhase === 'proving' ? 'Generating ZK Proof…' : 'Deposit & Prove Share')
-              : phase === 'checking'
-                ? 'Verifying Engine…'
-                : phase === 'proving'
-                  ? 'Generating ZK Proof…'
+              ? demoPhase === 'proving' ? 'Generating ZK Proof…' : 'Deposit & Prove Share'
+              : phase === 'checking' ? 'Verifying Engine…'
+                : phase === 'proving' ? 'Generating ZK Proof…'
                   : 'Deposit & Prove Share'}
           </button>
         </div>
 
-        {/* Result / feedback */}
         {isDemo && demoPhase === 'done' && demoResult && (
-          <div className="notice" style={{ marginTop: 24, borderColor: '#1f5136', background: 'rgba(31,81,54,0.15)' }}>
-            <div>
-              ✅ <strong>Deposit Verified!</strong> Proof accepted by network. Disclosed result:{' '}
-              <code>shareMet = {String(demoResult.shareMet)}</code>.
-            </div>
-            <div className="small muted" style={{ marginTop: 4 }}>
-              Transaction Hash: <span className="mono">{demoResult.txId}</span>
-            </div>
+          <div className="notice" style={{ marginTop: 24, borderColor: 'rgba(47,182,124,.35)', background: 'rgba(47,182,124,.07)' }}>
+            <div className="row"><CheckIcon style={{ color: 'var(--ok)' }} /><strong>Deposit verified</strong> · Disclosed result: <code>shareMet = {String(demoResult.shareMet)}</code></div>
+            <div className="small muted" style={{ marginTop: 6 }}>Simulated transaction: <span className="mono">{demoResult.txId}</span></div>
           </div>
         )}
         {!isDemo && phase === 'done' && result && (
-          <div className="notice" style={{ marginTop: 24, borderColor: '#1f5136', background: 'rgba(31,81,54,0.15)' }}>
-            <div>
-              ✅ <strong>Deposit Verified!</strong> Proof accepted by network. Disclosed result:{' '}
-              <code>shareMet = {String(result.returnValue)}</code>.
-            </div>
-            <div className="small muted" style={{ marginTop: 4 }}>
-              Transaction Hash: <span className="mono">{result.txId}</span>
-            </div>
+          <div className="notice" style={{ marginTop: 24, borderColor: 'rgba(47,182,124,.35)', background: 'rgba(47,182,124,.07)' }}>
+            <div className="row"><CheckIcon style={{ color: 'var(--ok)' }} /><strong>Deposit verified</strong> · Disclosed result: <code>shareMet = {String(result.returnValue)}</code></div>
+            <div className="small muted" style={{ marginTop: 6 }}>Transaction hash: <span className="mono">{result.txId}</span></div>
           </div>
         )}
-        {phase === 'error' && error && (
-          <div className="notice err" style={{ marginTop: 24 }}>
-            {error}
-          </div>
-        )}
+        {!isDemo && phase === 'error' && error && <div className="notice err" style={{ marginTop: 24 }}>{error}</div>}
       </section>
-    </div>
-  );
-}
-
-function ProofServerRow({
-  status,
-  onRecheck,
-}: {
-  status: 'up' | 'down' | 'unknown';
-  onRecheck: () => Promise<void>;
-}) {
-  const [copied, setCopied] = useState(false);
-  const cls = status === 'up' ? 'ok' : status === 'down' ? 'off' : 'warn';
-  const label =
-    status === 'up'
-      ? 'Zero-Knowledge Proof Engine Active'
-      : status === 'down'
-        ? 'Proof Engine Standby'
-        : 'Checking Proof Engine…';
-
-  return (
-    <div className="notice warn" style={{ marginTop: 12 }}>
-      <div className="row spread">
-        <span className={`badge ${cls}`}>
-          <span className="dot" />
-          {label}
-        </span>
-        <button className="small ghost" onClick={onRecheck}>
-          Re-check
-        </button>
-      </div>
-      {status !== 'up' && (
-        <details style={{ marginTop: 10 }}>
-          <summary className="small muted" style={{ cursor: 'pointer' }}>
-            Show local proof engine startup command
-          </summary>
-          <div className="row" style={{ gap: 8, marginTop: 8 }}>
-            <code className="addr" style={{ flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>
-              {PROOF_SERVER_CMD}
-            </code>
-            <button
-              className="small"
-              onClick={async () => {
-                await navigator.clipboard.writeText(PROOF_SERVER_CMD);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1200);
-              }}
-            >
-              {copied ? 'Copied ✓' : 'Copy'}
-            </button>
-          </div>
-        </details>
-      )}
     </div>
   );
 }

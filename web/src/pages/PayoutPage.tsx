@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useGlobalState } from '../context/GlobalStateContext';
 import { useLedger } from '../hooks/useLedger';
 import { usePayout } from '../hooks/usePayout';
 import { isDemoCircle, DEMO_CIRCLE } from '../config/demo';
-
-const PROOF_SERVER_CMD =
-  'docker run --platform linux/amd64 -p 6300:6300 midnightntwrk/proof-server:2.0.8';
+import { PageHeader } from '../components/PageHeader';
+import { DemoBanner } from '../components/DemoBanner';
+import { ProofServerRow } from '../components/ProofServerRow';
+import { CheckIcon } from '../components/Icons';
 
 export function PayoutPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { wallet } = useGlobalState();
   const call = usePayout();
   const ledgerState = useLedger();
@@ -19,34 +19,31 @@ export function PayoutPage() {
   const connected = wallet.status === 'connected' && wallet.connection;
   const { phase, proofServer, result, error, hasContract } = call;
 
-  // Demo simulation state
   const [demoPhase, setDemoPhase] = useState<'idle' | 'proving' | 'done'>('idle');
   const [demoResult, setDemoResult] = useState<{ txId: string } | null>(null);
 
-  const busy = isDemo ? demoPhase === 'proving' : (phase === 'checking' || phase === 'proving');
+  const busy = isDemo ? demoPhase === 'proving' : phase === 'checking' || phase === 'proving';
 
-  // Use demo or live data
+  // Demo hardcodes this caller as member #3 (index 2) to show the happy path.
   const mockedMemberIndex = 2;
   const currentRecipientIndex = isDemo
     ? Number(DEMO_CIRCLE.currentRecipientIndex)
     : ledgerState.ledger ? Number(ledgerState.ledger.currentRecipientIndex) : 0;
-  
+
   const isMyTurn = connected && currentRecipientIndex === mockedMemberIndex;
-  const poolSolvent = isDemo ? DEMO_CIRCLE.poolSolvent : (ledgerState.ledger ? ledgerState.ledger.poolSolvent : false);
-  const poolTotal = isDemo ? DEMO_CIRCLE.poolTotal.toString() : (ledgerState.ledger ? ledgerState.ledger.poolTotal.toString() : '0');
+  const poolSolvent = isDemo ? DEMO_CIRCLE.poolSolvent : ledgerState.ledger ? ledgerState.ledger.poolSolvent : false;
+  const poolTotal = isDemo ? DEMO_CIRCLE.poolTotal.toString() : ledgerState.ledger ? ledgerState.ledger.poolTotal.toString() : '0';
 
   const canClaim = isMyTurn && poolSolvent;
-  const canSubmit = connected && !busy && canClaim;
+  const canSubmit = !!connected && !busy && !!canClaim;
 
   const onSubmit = async () => {
     if (!connected) return;
     if (isDemo) {
       setDemoPhase('proving');
       setDemoResult(null);
-      await new Promise((r) => setTimeout(r, 2500));
-      setDemoResult({
-        txId: '0x' + Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      });
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      setDemoResult({ txId: '0x' + Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join('') });
       setDemoPhase('done');
       return;
     }
@@ -55,167 +52,78 @@ export function PayoutPage() {
   };
 
   return (
-    <div className="page-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <button className="small ghost" onClick={() => navigate(`/circles/${id}`)} style={{ marginBottom: '12px' }}>
-            &larr; Back to Dashboard
-          </button>
-          <h1>Claim Payout</h1>
-          <p style={{ opacity: 0.8, fontFamily: 'monospace', fontSize: '0.85rem' }}>{id}</p>
-          {isDemo && (
-            <span className="badge warn" style={{ marginTop: '4px' }}>
-              <span className="dot" /> Demo Mode
-            </span>
-          )}
-        </div>
-      </div>
+    <div className="page-container page-container--narrow">
+      <PageHeader
+        eyebrow="Rotation payout"
+        title="Claim Payout"
+        subtitle={<span className="mono">{id}</span>}
+        backTo={`/circles/${id}`}
+        backLabel="Back to Dashboard"
+      />
+      {isDemo && <DemoBanner note="The claim below is simulated locally; no funds move." />}
 
       <section className="panel">
         {!isMyTurn ? (
           <div className="notice warn" style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <h3 style={{ margin: '0 0 12px 0' }}>Not Your Turn Yet</h3>
-            <p style={{ margin: 0, opacity: 0.8 }}>
-              The current cycle's payout is reserved for member <strong>#{currentRecipientIndex + 1}</strong>.
-              You are recognized as member <strong>#{mockedMemberIndex + 1}</strong>.
+            <h3 style={{ margin: '0 0 12px' }}>Not your turn yet</h3>
+            <p style={{ margin: 0, opacity: 0.85 }}>
+              This cycle's payout is reserved for member <strong>#{currentRecipientIndex + 1}</strong>.
+              {connected && <> You are recognized as member <strong>#{mockedMemberIndex + 1}</strong>.</>}
+              {!connected && <> Connect your wallet to check your rotation position.</>}
             </p>
           </div>
         ) : !poolSolvent ? (
           <div className="notice err" style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <h3 style={{ margin: '0 0 12px 0' }}>Pool Insolvent</h3>
-            <p style={{ margin: 0, opacity: 0.8 }}>
-              It is your turn, but the circle has not met the required share threshold for this cycle yet.
-            </p>
+            <h3 style={{ margin: '0 0 12px' }}>Pool not yet solvent</h3>
+            <p style={{ margin: 0, opacity: 0.85 }}>It is your turn, but the circle has not met the required share threshold for this cycle.</p>
           </div>
         ) : (
           <div>
-            <div className="notice" style={{ borderColor: 'var(--ok)', background: 'rgba(31,81,54,0.1)', textAlign: 'center', padding: '24px' }}>
-              <h2 style={{ margin: '0 0 8px 0', color: 'var(--ok)' }}>It's Your Turn!</h2>
-              <p style={{ margin: 0, opacity: 0.9 }}>
-                The pool is fully solvent and you are the designated recipient for this cycle.
-              </p>
-              <div style={{ fontSize: '2rem', fontWeight: 'bold', marginTop: '16px', color: '#4c8dff' }}>
-                {poolTotal} tNIGHT
-              </div>
+            <div className="chain-strip" style={{ textAlign: 'center', padding: 24 }}>
+              <h2 style={{ margin: '0 0 8px', color: 'var(--ok)', fontFamily: 'var(--font-display)' }}>It's your turn</h2>
+              <p style={{ margin: 0, color: 'var(--text-2)' }}>The pool is fully solvent and you are the designated recipient for this cycle.</p>
+              <div className="mono" style={{ fontSize: 32, fontWeight: 600, marginTop: 16, color: 'var(--text)' }}>{poolTotal} tNIGHT</div>
               <div className="small muted">Total claimable pool balance</div>
             </div>
 
-            {/* Proof Engine Status */}
             {isDemo ? (
-              <div className="notice" style={{ marginTop: 24, borderColor: 'rgba(52, 211, 153, 0.3)', background: 'rgba(52, 211, 153, 0.06)' }}>
-                <div className="row spread">
-                  <span className="badge ok">
-                    <span className="dot" />
-                    Demo Mode — ZK Proof Simulation Active
-                  </span>
-                </div>
+              <div className="notice" style={{ marginTop: 20 }}>
+                <span className="badge warn"><span className="dot" /> Local proof simulation</span>
               </div>
             ) : (
-              <ProofServerRow status={proofServer} onRecheck={call.recheckProofServer} />
+              <ProofServerRow status={proofServer} onRecheck={call.recheckProofServer} style={{ marginTop: 20 }} />
             )}
 
             <div className="row spread" style={{ marginTop: 24 }}>
               <div>
                 {!connected && <span className="small muted">Connect your Lace wallet to participate.</span>}
-                {connected && !hasContract && !isDemo && (
-                  <span className="small muted ok">Client ZK Proof Simulation Active</span>
-                )}
+                {connected && !hasContract && !isDemo && <span className="small muted">Simulated locally — no contract deployed.</span>}
               </div>
               <button className="primary" onClick={onSubmit} disabled={!canSubmit}>
                 {isDemo
-                  ? (demoPhase === 'proving' ? 'Generating ZK Proof…' : 'Claim Entire Pool')
-                  : phase === 'checking'
-                    ? 'Verifying Engine…'
-                    : phase === 'proving'
-                      ? 'Generating ZK Proof…'
+                  ? demoPhase === 'proving' ? 'Generating ZK Proof…' : 'Claim Entire Pool'
+                  : phase === 'checking' ? 'Verifying Engine…'
+                    : phase === 'proving' ? 'Generating ZK Proof…'
                       : 'Claim Entire Pool'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Demo Result */}
         {isDemo && demoPhase === 'done' && demoResult && (
-          <div className="notice" style={{ marginTop: 24, borderColor: '#1f5136', background: 'rgba(31,81,54,0.15)' }}>
-            <div>
-              ✅ <strong>Payout Claimed!</strong> You have successfully rotated the circle and claimed the pool.
-            </div>
-            <div className="small muted" style={{ marginTop: 4 }}>
-              Transaction Hash: <span className="mono">{demoResult.txId}</span>
-            </div>
+          <div className="notice" style={{ marginTop: 24, borderColor: 'rgba(47,182,124,.35)', background: 'rgba(47,182,124,.07)' }}>
+            <div className="row"><CheckIcon style={{ color: 'var(--ok)' }} /><strong>Payout claimed</strong> · The circle has rotated to the next recipient.</div>
+            <div className="small muted" style={{ marginTop: 6 }}>Simulated transaction: <span className="mono">{demoResult.txId}</span></div>
           </div>
         )}
-
-        {/* Live Result */}
         {!isDemo && phase === 'done' && result && (
-          <div className="notice" style={{ marginTop: 24, borderColor: '#1f5136', background: 'rgba(31,81,54,0.15)' }}>
-            <div>
-              ✅ <strong>Payout Claimed!</strong> You have successfully rotated the circle and claimed the pool.
-            </div>
-            <div className="small muted" style={{ marginTop: 4 }}>
-              Transaction Hash: <span className="mono">{result.txId}</span>
-            </div>
+          <div className="notice" style={{ marginTop: 24, borderColor: 'rgba(47,182,124,.35)', background: 'rgba(47,182,124,.07)' }}>
+            <div className="row"><CheckIcon style={{ color: 'var(--ok)' }} /><strong>Payout claimed</strong> · The circle has rotated to the next recipient.</div>
+            <div className="small muted" style={{ marginTop: 6 }}>Transaction hash: <span className="mono">{result.txId}</span></div>
           </div>
         )}
-        {!isDemo && phase === 'error' && error && (
-          <div className="notice err" style={{ marginTop: 24 }}>
-            {error}
-          </div>
-        )}
+        {!isDemo && phase === 'error' && error && <div className="notice err" style={{ marginTop: 24 }}>{error}</div>}
       </section>
-    </div>
-  );
-}
-
-function ProofServerRow({
-  status,
-  onRecheck,
-}: {
-  status: 'up' | 'down' | 'unknown';
-  onRecheck: () => Promise<void>;
-}) {
-  const [copied, setCopied] = useState(false);
-  const cls = status === 'up' ? 'ok' : status === 'down' ? 'off' : 'warn';
-  const label =
-    status === 'up'
-      ? 'Zero-Knowledge Proof Engine Active'
-      : status === 'down'
-        ? 'Proof Engine Standby'
-        : 'Checking Proof Engine…';
-
-  return (
-    <div className="notice warn" style={{ marginTop: 24 }}>
-      <div className="row spread">
-        <span className={`badge ${cls}`}>
-          <span className="dot" />
-          {label}
-        </span>
-        <button className="small ghost" onClick={onRecheck}>
-          Re-check
-        </button>
-      </div>
-      {status !== 'up' && (
-        <details style={{ marginTop: 10 }}>
-          <summary className="small muted" style={{ cursor: 'pointer' }}>
-            Show local proof engine startup command
-          </summary>
-          <div className="row" style={{ gap: 8, marginTop: 8 }}>
-            <code className="addr" style={{ flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>
-              {PROOF_SERVER_CMD}
-            </code>
-            <button
-              className="small"
-              onClick={async () => {
-                await navigator.clipboard.writeText(PROOF_SERVER_CMD);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1200);
-              }}
-            >
-              {copied ? 'Copied ✓' : 'Copy'}
-            </button>
-          </div>
-        </details>
-      )}
     </div>
   );
 }
