@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
 
 // ═══════════════════════════════════════════════════════════════════════
 // Vault Circle frontend — Vite config
@@ -40,6 +41,19 @@ async function optionalWasmPlugins() {
 // top-level await (which would itself require the tla plugin to be present).
 export default defineConfig(async () => ({
   plugins: [react(), ...(await optionalWasmPlugins())],
+  resolve: {
+    alias: {
+      // The compiled contract lives in ../managed (outside web/) and imports
+      // '@midnight-ntwrk/compact-runtime' as a bare specifier. Node/Rollup
+      // resolves bare imports from the *importer's* folder upward, so on a
+      // web-only install (e.g. Vercel) the package — which lives in
+      // web/node_modules — isn't found from managed/. Pin it explicitly to
+      // web's copy so resolution succeeds regardless of the importer location.
+      '@midnight-ntwrk/compact-runtime': fileURLToPath(
+        new URL('./node_modules/@midnight-ntwrk/compact-runtime', import.meta.url),
+      ),
+    },
+  },
   define: {
     // A few Midnight deps reference `global` (a Node-ism) at module scope.
     global: 'globalThis',
